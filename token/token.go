@@ -17,6 +17,18 @@ type Token struct {
 	Span    Span
 }
 
+func (t *Token) IsLet() bool {
+	return t.Literal == "let" && t.Type == LET
+}
+
+func (t *Token) IsIdent() bool {
+	return t.Type == IDENT
+}
+
+func (t *Token) IsReturn() bool {
+	return t.Type == RETURN && t.Literal == "return"
+}
+
 const (
 	ILLEGAL = "ILLEGAL"
 	EOF     = "EOF"
