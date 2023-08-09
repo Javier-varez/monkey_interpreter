@@ -46,7 +46,19 @@ func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 	switch l.ch {
 	case '=':
-		tok = newToken(token.ASSIGN, l.ch, l.currentLine, l.position-l.lineByteOffset)
+		if l.peekChar() == '=' {
+			tok.Type = token.EQ
+			ch := l.ch
+			position := l.position
+			l.readChar()
+			tok.Literal = string(ch) + string(l.ch)
+			tok.Span = token.Span{
+				Start: token.Location{Line: l.currentLine, Column: position - l.lineByteOffset},
+				End:   token.Location{Line: l.currentLine, Column: position + 2 - l.lineByteOffset},
+			}
+		} else {
+			tok = newToken(token.ASSIGN, l.ch, l.currentLine, l.position-l.lineByteOffset)
+		}
 	case '+':
 		tok = newToken(token.PLUS, l.ch, l.currentLine, l.position-l.lineByteOffset)
 	case '(':
@@ -62,7 +74,19 @@ func (l *Lexer) NextToken() token.Token {
 	case ',':
 		tok = newToken(token.COMMA, l.ch, l.currentLine, l.position-l.lineByteOffset)
 	case '!':
-		tok = newToken(token.BANG, l.ch, l.currentLine, l.position-l.lineByteOffset)
+		if l.peekChar() == '=' {
+			tok.Type = token.NOT_EQ
+			ch := l.ch
+			position := l.position
+			l.readChar()
+			tok.Literal = string(ch) + string(l.ch)
+			tok.Span = token.Span{
+				Start: token.Location{Line: l.currentLine, Column: position - l.lineByteOffset},
+				End:   token.Location{Line: l.currentLine, Column: position + 2 - l.lineByteOffset},
+			}
+		} else {
+			tok = newToken(token.BANG, l.ch, l.currentLine, l.position-l.lineByteOffset)
+		}
 	case '-':
 		tok = newToken(token.MINUS, l.ch, l.currentLine, l.position-l.lineByteOffset)
 	case '*':
@@ -136,6 +160,13 @@ func (l *Lexer) skipWhitespace() {
 		}
 		l.readChar()
 	}
+}
+
+func (l *Lexer) peekChar() byte {
+	if l.readPosition >= len(l.input) {
+		return 0
+	}
+	return l.input[l.readPosition]
 }
 
 func isLetter(ch byte) bool {

@@ -31,6 +31,15 @@ let result = add(five, ten);
 
 !-/*5;
 5 < 10 > 5;
+
+if (5 < 10) {
+	return true;
+} else {
+	return false;
+}
+
+10 == 10;
+10 != 9;
 `
 
 	tests := []token.Token{
@@ -82,7 +91,32 @@ let result = add(five, ten);
 		{Type: token.GT, Literal: ">", Span: newSpan(10, 7, 1)},
 		{Type: token.INT, Literal: "5", Span: newSpan(10, 9, 1)},
 		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(10, 10, 1)},
-		{Type: token.EOF, Literal: "", Span: newSpan(11, 0, 0)},
+		{Type: token.IF, Literal: "if", Span: newSpan(12, 0, 2)},
+		{Type: token.LPAREN, Literal: "(", Span: newSpan(12, 3, 1)},
+		{Type: token.INT, Literal: "5", Span: newSpan(12, 4, 1)},
+		{Type: token.LT, Literal: "<", Span: newSpan(12, 6, 1)},
+		{Type: token.INT, Literal: "10", Span: newSpan(12, 8, 2)},
+		{Type: token.RPAREN, Literal: ")", Span: newSpan(12, 10, 1)},
+		{Type: token.LBRACE, Literal: "{", Span: newSpan(12, 12, 1)},
+		{Type: token.RETURN, Literal: "return", Span: newSpan(13, 1, 6)},
+		{Type: token.TRUE, Literal: "true", Span: newSpan(13, 8, 4)},
+		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(13, 12, 1)},
+		{Type: token.RBRACE, Literal: "}", Span: newSpan(14, 0, 1)},
+		{Type: token.ELSE, Literal: "else", Span: newSpan(14, 2, 4)},
+		{Type: token.LBRACE, Literal: "{", Span: newSpan(14, 7, 1)},
+		{Type: token.RETURN, Literal: "return", Span: newSpan(15, 1, 6)},
+		{Type: token.FALSE, Literal: "false", Span: newSpan(15, 8, 5)},
+		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(15, 13, 1)},
+		{Type: token.RBRACE, Literal: "}", Span: newSpan(16, 0, 1)},
+		{Type: token.INT, Literal: "10", Span: newSpan(18, 0, 2)},
+		{Type: token.EQ, Literal: "==", Span: newSpan(18, 3, 2)},
+		{Type: token.INT, Literal: "10", Span: newSpan(18, 6, 2)},
+		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(18, 8, 1)},
+		{Type: token.INT, Literal: "10", Span: newSpan(19, 0, 2)},
+		{Type: token.NOT_EQ, Literal: "!=", Span: newSpan(19, 3, 2)},
+		{Type: token.INT, Literal: "9", Span: newSpan(19, 6, 1)},
+		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(19, 7, 1)},
+		{Type: token.EOF, Literal: "", Span: newSpan(20, 0, 0)},
 	}
 
 	l := New(input)
@@ -90,13 +124,13 @@ let result = add(five, ten);
 	for i, tt := range tests {
 		tok := l.NextToken()
 		if tok.Literal != tt.Literal {
-			t.Fatalf("tests[%d] - tokenliteral wrong. expected=%q, got=%q", i, tt.Literal, tok.Literal)
+			t.Fatalf("tests[%d] - tokenliteral wrong. expected=%v, got=%v", i, tt, tok)
 		}
 		if tok.Type != tt.Type {
-			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q", i, tt.Type, tok.Type)
+			t.Fatalf("tests[%d] - tokentype wrong. expected=%v, got=%v", i, tt, tok)
 		}
 		if tok.Span != tt.Span {
-			t.Fatalf("tests[%d] - tokenspan wrong. expected=%v, got=%v", i, tt.Span, tok.Span)
+			t.Fatalf("tests[%d] - tokenspan wrong. expected=%v, got=%v", i, tt, tok)
 		}
 	}
 }
