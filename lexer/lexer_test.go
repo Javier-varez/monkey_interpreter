@@ -28,6 +28,9 @@ let add = fn(x, y) {
 };
 
 let result = add(five, ten);
+
+!-/*5;
+5 < 10 > 5;
 `
 
 	tests := []token.Token{
@@ -67,7 +70,19 @@ let result = add(five, ten);
 		{Type: token.IDENT, Literal: "ten", Span: newSpan(7, 23, 3)},
 		{Type: token.RPAREN, Literal: ")", Span: newSpan(7, 26, 1)},
 		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(7, 27, 1)},
-		{Type: token.EOF, Literal: "", Span: newSpan(8, 0, 0)},
+		{Type: token.BANG, Literal: "!", Span: newSpan(9, 0, 1)},
+		{Type: token.MINUS, Literal: "-", Span: newSpan(9, 1, 1)},
+		{Type: token.SLASH, Literal: "/", Span: newSpan(9, 2, 1)},
+		{Type: token.ASTERISK, Literal: "*", Span: newSpan(9, 3, 1)},
+		{Type: token.INT, Literal: "5", Span: newSpan(9, 4, 1)},
+		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(9, 5, 1)},
+		{Type: token.INT, Literal: "5", Span: newSpan(10, 0, 1)},
+		{Type: token.LT, Literal: "<", Span: newSpan(10, 2, 1)},
+		{Type: token.INT, Literal: "10", Span: newSpan(10, 4, 2)},
+		{Type: token.GT, Literal: ">", Span: newSpan(10, 7, 1)},
+		{Type: token.INT, Literal: "5", Span: newSpan(10, 9, 1)},
+		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(10, 10, 1)},
+		{Type: token.EOF, Literal: "", Span: newSpan(11, 0, 0)},
 	}
 
 	l := New(input)
