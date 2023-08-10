@@ -12,14 +12,10 @@ func checkDiagnostics(t *testing.T, program *ast.Program) {
 	if len(program.Diagnostics) != 0 {
 		t.Errorf("Diagnostics in program:")
 		for _, err := range program.Diagnostics {
-			if parseErr, ok := err.(*ParseError); ok {
-				t.Errorf("\t[%d][%d] %s", parseErr.span.Start.Line, parseErr.span.Start.Column, parseErr.Error())
-			} else {
-				t.Errorf("\t%s", err.Error())
-			}
+			t.Errorf("\t[%d][%d] %s", err.Span().Start.Line, err.Span().Start.Column, err.Error())
 		}
+		t.Fatalf("Unrecoverable program diagnostics")
 	}
-
 }
 
 func TestLetStatements(t *testing.T) {

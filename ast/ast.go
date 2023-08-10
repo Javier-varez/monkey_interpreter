@@ -22,9 +22,15 @@ type Statment interface {
 	statementNode()
 }
 
+type Error interface {
+	error
+	ContextualError() string
+	Span() token.Span
+}
+
 type Program struct {
 	Statements  []Statment
-	Diagnostics []error
+	Diagnostics []Error
 }
 
 func (p *Program) Span() token.Span {

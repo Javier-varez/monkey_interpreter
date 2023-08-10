@@ -36,19 +36,28 @@ var precedences = map[token.TokenType]int{
 type prefixParseFn func() ast.Expression
 type infixParseFn func(ast.Expression) ast.Expression
 
-type ParseError struct {
+type parseError struct {
 	input    string
 	span     token.Span
 	errorMsg string
 }
 
-func (p *ParseError) Error() string {
+func (p *parseError) Error() string {
 	// TODO(ja): Incorporate context information
 	return p.errorMsg
 }
 
+func (p *parseError) ContextualError() string {
+	// Shows a contextual error based on the span
+	return p.errorMsg
+}
+
+func (p *parseError) Span() token.Span {
+	return p.span
+}
+
 func (p *Parser) mkError(s token.Span, msg string) {
-	p.errors = append(p.errors, &ParseError{
+	p.errors = append(p.errors, &parseError{
 		input:    p.l.Input,
 		span:     s,
 		errorMsg: msg,
@@ -61,7 +70,7 @@ type Parser struct {
 	peekToken      token.Token
 	prefixParseFns map[token.TokenType]prefixParseFn
 	infixParseFns  map[token.TokenType]infixParseFn
-	errors         []error
+	errors         []ast.Error
 }
 
 func New(l *lexer.Lexer) *Parser {
