@@ -540,3 +540,105 @@ func TestIfElseExpression(t *testing.T) {
 		t.Fatalf("Error in alternative of if expr")
 	}
 }
+
+func TestFnLiteralExpression(t *testing.T) {
+	input := `
+fn(x,y) {
+	x + y;
+}`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program, error := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	if error != nil {
+		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	fnLitExpr, ok := stmt.Expr.(*ast.FnLiteralExpr)
+	if !ok {
+		t.Fatalf("Not an fn literal expression: %T", stmt.Expr)
+	}
+
+	if len(fnLitExpr.Args) != 2 {
+		t.Fatalf("Unexpected number of function args: %d", len(fnLitExpr.Args))
+	}
+
+	if !testIdentifier(t, fnLitExpr.Args[0], "x") {
+		return
+	}
+
+	if !testIdentifier(t, fnLitExpr.Args[1], "y") {
+		return
+	}
+
+	if fnLitExpr.Body == nil {
+		t.Fatalf("No body for function")
+	}
+
+	if len(fnLitExpr.Body.Statements) != 1 {
+		t.Fatalf("Unexpected number of statements for fn body: %d", len(fnLitExpr.Body.Statements))
+	}
+
+	bodyStmt, ok := fnLitExpr.Body.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expr statement")
+	}
+
+	testInfixExpression(t, bodyStmt.Expr, "x", "+", "y")
+}
+
+func TestFnLiteralExpressionParams(t *testing.T) {
+	tests := []struct {
+		input string
+		args  []string
+	}{
+		{"fn() {}", []string{}},
+		{"fn(x) {}", []string{"x"}},
+		{"fn(x,y,z) {}", []string{"x", "y", "z"}},
+		{"fn(abc,def) {}", []string{"abc", "def"}},
+	}
+
+	for _, test := range tests {
+		l := lexer.New(test.input)
+		p := New(l)
+
+		program, error := p.ParseProgram()
+		if program == nil {
+			t.Fatalf("ParseProgram() returned a nil program")
+		}
+
+		if error != nil {
+			t.Fatalf("ParseProgram() returned an error: %v", error.Error())
+		}
+
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+		}
+
+		fnLitExpr, ok := stmt.Expr.(*ast.FnLiteralExpr)
+		if !ok {
+			t.Fatalf("Not an fn literal expression: %T", stmt.Expr)
+		}
+
+		if len(fnLitExpr.Args) != len(test.args) {
+			t.Fatalf("Unexpected number of function args: %d", len(fnLitExpr.Args))
+		}
+
+		for idx, expectedArg := range test.args {
+			if !testIdentifier(t, fnLitExpr.Args[idx], expectedArg) {
+				return
+			}
+		}
+	}
+}

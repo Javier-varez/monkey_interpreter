@@ -56,6 +56,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFns[token.FALSE] = p.parseBooleanLiteralExpr
 	p.prefixParseFns[token.LPAREN] = p.parseGroupedExpr
 	p.prefixParseFns[token.IF] = p.parseIfExpr
+	p.prefixParseFns[token.FUNCTION] = p.parseFnLiteralExpr
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.infixParseFns[token.PLUS] = p.parseInfixExpr
 	p.infixParseFns[token.MINUS] = p.parseInfixExpr
@@ -177,6 +178,45 @@ func (p *Parser) parseIfExpr() ast.Expression {
 	expr.Alternative = p.parseBlockStatement()
 
 	return &expr
+}
+
+func (p *Parser) parseFnLiteralExpr() ast.Expression {
+	expr := &ast.FnLiteralExpr{}
+
+	if p.peekToken.Type != token.LPAREN {
+		// TODO(ja): Handle errors
+		return nil
+	}
+	p.nextToken()
+	p.nextToken()
+
+	for p.curToken.Type != token.RPAREN {
+		if p.curToken.Type != token.IDENT {
+			// TODO(ja): Handle error
+			return nil
+		}
+
+		if p.peekToken.Type != token.COMMA && p.peekToken.Type != token.RPAREN {
+			// TODO(ja): Handle error
+			return nil
+		}
+
+		identExpr := p.parseIdentExpr().(*ast.IdentifierExpr)
+		expr.Args = append(expr.Args, identExpr)
+		p.nextToken()
+
+		if p.curToken.Type == token.COMMA {
+			p.nextToken()
+		}
+	}
+
+	if p.peekToken.Type != token.LBRACE {
+		return nil
+	}
+	p.nextToken()
+
+	expr.Body = p.parseBlockStatement()
+	return expr
 }
 
 func (p *Parser) parsePrefixExpr() ast.Expression {

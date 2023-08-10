@@ -235,3 +235,30 @@ func (expr *IfExpr) String() string {
 
 	return out.String()
 }
+
+type FnLiteralExpr struct {
+	Args []*IdentifierExpr
+	Body *BlockStatement
+}
+
+func (expr *FnLiteralExpr) expressionNode() {}
+func (expr *FnLiteralExpr) Span() token.Span {
+	// TODO(ja): Implement
+	return token.Span{}
+}
+
+func (expr *FnLiteralExpr) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("fn(")
+	for i, arg := range expr.Args {
+		out.WriteString(arg.String())
+		if i != len(expr.Args)-1 {
+			out.WriteString(",")
+		}
+	}
+	out.WriteString(") ")
+	out.WriteString(expr.Body.String())
+
+	return out.String()
+}
