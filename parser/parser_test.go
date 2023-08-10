@@ -318,3 +318,44 @@ func TestInfixExpressions(t *testing.T) {
 		}
 	}
 }
+
+func TestPrecedence(t *testing.T) {
+	tests := []struct {
+		input  string
+		output string
+	}{
+		{"-a * b", "((-a)*b)"},
+		{"!-a", "(!(-a))"},
+		{"a + b + c", "((a+b)+c)"},
+		{"a + b - c", "((a+b)-c)"},
+		{"a * b * c", "((a*b)*c)"},
+		{"a * b / c", "((a*b)/c)"},
+		{"a + b / c", "(a+(b/c))"},
+		{"a + b * c + d / e - f", "(((a+(b*c))+(d/e))-f)"},
+		{"3 + 4; -5 * 5", "(3+4)((-5)*5)"},
+		{"5 > 4 == 3 < 4", "((5>4)==(3<4))"},
+		{"5 < 4 != 3 > 4", "((5<4)!=(3>4))"},
+		{"3 + 4 * 5 == 3 * 1 + 4 * 5", "((3+(4*5))==((3*1)+(4*5)))"},
+	}
+
+	for _, test := range tests {
+		l := lexer.New(test.input)
+		p := New(l)
+
+		program, error := p.ParseProgram()
+		if program == nil {
+			t.Errorf("ParseProgram() returned a nil program")
+			continue
+		}
+
+		if error != nil {
+			t.Errorf("ParseProgram() returned an error: %v", error.Error())
+			continue
+		}
+
+		if program.String() != test.output {
+			t.Errorf("Unexpected output for input %q. Expected %q, got %q", test.input, test.output, program.String())
+			continue
+		}
+	}
+}

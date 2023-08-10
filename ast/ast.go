@@ -153,7 +153,7 @@ func (expr *PrefixExpr) Span() token.Span {
 }
 
 func (expr *PrefixExpr) String() string {
-	return expr.OperatorToken.Literal + expr.InnerExpr.String()
+	return "(" + expr.OperatorToken.Literal + expr.InnerExpr.String() + ")"
 }
 
 type InfixExpr struct {
@@ -169,5 +169,5 @@ func (expr *InfixExpr) Span() token.Span {
 }
 
 func (expr *InfixExpr) String() string {
-	return expr.LeftExpr.String() + expr.OperatorToken.Literal + expr.RightExpr.String()
+	return "(" + expr.LeftExpr.String() + expr.OperatorToken.Literal + expr.RightExpr.String() + ")"
 }
