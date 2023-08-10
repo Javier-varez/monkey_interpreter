@@ -1,28 +1,30 @@
 package repl
 
 import (
-	"bufio"
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/javier-varez/monkey_interpreter/lexer"
 	"github.com/javier-varez/monkey_interpreter/token"
+	"github.com/peterh/liner"
 )
 
 const PROMPT = ">> "
 
 func Start(in io.Reader, out io.Writer) {
-	scanner := bufio.NewScanner(in)
+	linerState := liner.NewLiner()
 
 	line := 0
 	for {
-		fmt.Fprintf(out, PROMPT)
-		scanned := scanner.Scan()
-		if !scanned {
+		txt, err := linerState.Prompt(PROMPT)
+		if err != nil {
+			log.Fatalf("Error from liner: %v", err)
 			return
 		}
 
-		txt := scanner.Text()
+		linerState.AppendHistory(txt)
+
 		lex := lexer.New(txt)
 		for tok := lex.NextToken(); tok.Type != token.EOF; tok = lex.NextToken() {
 			fmt.Fprintf(out, "%+v\n", tok)
