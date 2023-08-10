@@ -8,6 +8,20 @@ import (
 	"github.com/javier-varez/monkey_interpreter/token"
 )
 
+func checkDiagnostics(t *testing.T, program *ast.Program) {
+	if len(program.Diagnostics) != 0 {
+		t.Errorf("Diagnostics in program:")
+		for _, err := range program.Diagnostics {
+			if parseErr, ok := err.(*ParseError); ok {
+				t.Errorf("\t[%d][%d] %s", parseErr.span.Start.Line, parseErr.span.Start.Column, parseErr.Error())
+			} else {
+				t.Errorf("\t%s", err.Error())
+			}
+		}
+	}
+
+}
+
 func TestLetStatements(t *testing.T) {
 	input := `
 let x = 5;
@@ -17,14 +31,12 @@ let foobar = x;
 	l := lexer.New(input)
 	p := New(l)
 
-	program, error := p.ParseProgram()
+	program := p.ParseProgram()
 	if program == nil {
 		t.Fatalf("ParseProgram() returned a nil program")
 	}
 
-	if error != nil {
-		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
-	}
+	checkDiagnostics(t, program)
 
 	if len(program.Statements) != 3 {
 		t.Fatalf("program.Statements does not contain 3 statements. got %d\n", len(program.Statements))
@@ -86,14 +98,12 @@ return ident;
 	l := lexer.New(input)
 	p := New(l)
 
-	program, error := p.ParseProgram()
+	program := p.ParseProgram()
 	if program == nil {
 		t.Fatalf("ParseProgram() returned a nil program")
 	}
 
-	if error != nil {
-		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
-	}
+	checkDiagnostics(t, program)
 
 	if len(program.Statements) != 3 {
 		t.Fatalf("program.Statements does not contain 3 statements. got %d\n", len(program.Statements))
@@ -125,14 +135,12 @@ foobar;
 	l := lexer.New(input)
 	p := New(l)
 
-	program, error := p.ParseProgram()
+	program := p.ParseProgram()
 	if program == nil {
 		t.Fatalf("ParseProgram() returned a nil program")
 	}
 
-	if error != nil {
-		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
-	}
+	checkDiagnostics(t, program)
 
 	if len(program.Statements) != 1 {
 		t.Fatalf("program.Statements does not contain 1 statement. got %d\n", len(program.Statements))
@@ -160,14 +168,12 @@ func TestIntegerLiteralExpression(t *testing.T) {
 	l := lexer.New(input)
 	p := New(l)
 
-	program, error := p.ParseProgram()
+	program := p.ParseProgram()
 	if program == nil {
 		t.Fatalf("ParseProgram() returned a nil program")
 	}
 
-	if error != nil {
-		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
-	}
+	checkDiagnostics(t, program)
 
 	if len(program.Statements) != 1 {
 		t.Fatalf("program.Statements does not contain 1 statement. got %d\n", len(program.Statements))
@@ -206,16 +212,13 @@ func TestPrefixExpressions(t *testing.T) {
 		l := lexer.New(test.input)
 		p := New(l)
 
-		program, error := p.ParseProgram()
+		program := p.ParseProgram()
 		if program == nil {
 			t.Errorf("ParseProgram() returned a nil program")
 			continue
 		}
 
-		if error != nil {
-			t.Errorf("ParseProgram() returned an error: %v", error.Error())
-			continue
-		}
+		checkDiagnostics(t, program)
 
 		if len(program.Statements) != 1 {
 			t.Errorf("program.Statements does not contain 1 statement. got %d\n", len(program.Statements))
@@ -273,16 +276,13 @@ func TestInfixExpressions(t *testing.T) {
 		l := lexer.New(test.input)
 		p := New(l)
 
-		program, error := p.ParseProgram()
+		program := p.ParseProgram()
 		if program == nil {
 			t.Errorf("ParseProgram() returned a nil program")
 			continue
 		}
 
-		if error != nil {
-			t.Errorf("ParseProgram() returned an error: %v", error.Error())
-			continue
-		}
+		checkDiagnostics(t, program)
 
 		if len(program.Statements) != 1 {
 			t.Errorf("program[%d].Statements does not contain 1 statement. got %d\n", pIdx, len(program.Statements))
@@ -362,16 +362,13 @@ func TestPrecedence(t *testing.T) {
 		l := lexer.New(test.input)
 		p := New(l)
 
-		program, error := p.ParseProgram()
+		program := p.ParseProgram()
 		if program == nil {
 			t.Errorf("ParseProgram() returned a nil program")
 			continue
 		}
 
-		if error != nil {
-			t.Errorf("ParseProgram() returned an error: %v", error.Error())
-			continue
-		}
+		checkDiagnostics(t, program)
 
 		if program.String() != test.output {
 			t.Errorf("Unexpected output for input %q. Expected %q, got %q", test.input, test.output, program.String())
@@ -470,14 +467,12 @@ func TestIfExpression(t *testing.T) {
 	l := lexer.New(input)
 	p := New(l)
 
-	program, error := p.ParseProgram()
+	program := p.ParseProgram()
 	if program == nil {
 		t.Fatalf("ParseProgram() returned a nil program")
 	}
 
-	if error != nil {
-		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
-	}
+	checkDiagnostics(t, program)
 
 	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
 	if !ok {
@@ -517,14 +512,12 @@ func TestIfElseExpression(t *testing.T) {
 	l := lexer.New(input)
 	p := New(l)
 
-	program, error := p.ParseProgram()
+	program := p.ParseProgram()
 	if program == nil {
 		t.Fatalf("ParseProgram() returned a nil program")
 	}
 
-	if error != nil {
-		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
-	}
+	checkDiagnostics(t, program)
 
 	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
 	if !ok {
@@ -580,14 +573,12 @@ fn(x,y) {
 	l := lexer.New(input)
 	p := New(l)
 
-	program, error := p.ParseProgram()
+	program := p.ParseProgram()
 	if program == nil {
 		t.Fatalf("ParseProgram() returned a nil program")
 	}
 
-	if error != nil {
-		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
-	}
+	checkDiagnostics(t, program)
 
 	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
 	if !ok {
@@ -642,14 +633,12 @@ func TestFnLiteralExpressionParams(t *testing.T) {
 		l := lexer.New(test.input)
 		p := New(l)
 
-		program, error := p.ParseProgram()
+		program := p.ParseProgram()
 		if program == nil {
 			t.Fatalf("ParseProgram() returned a nil program")
 		}
 
-		if error != nil {
-			t.Fatalf("ParseProgram() returned an error: %v", error.Error())
-		}
+		checkDiagnostics(t, program)
 
 		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
 		if !ok {
@@ -678,14 +667,12 @@ func TestCallExpression(t *testing.T) {
 	l := lexer.New(input)
 	p := New(l)
 
-	program, error := p.ParseProgram()
+	program := p.ParseProgram()
 	if program == nil {
 		t.Fatalf("ParseProgram() returned a nil program")
 	}
 
-	if error != nil {
-		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
-	}
+	checkDiagnostics(t, program)
 
 	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
 	if !ok {

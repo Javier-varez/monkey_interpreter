@@ -5,7 +5,7 @@ import (
 )
 
 type Lexer struct {
-	input          string
+	Input          string
 	position       int  // current position in input (points to current char)
 	readPosition   int  // current reading position in input (after current char)
 	ch             byte // current char under examination
@@ -14,16 +14,16 @@ type Lexer struct {
 }
 
 func New(input string) *Lexer {
-	l := &Lexer{input: input}
+	l := &Lexer{Input: input}
 	l.readChar()
 	return l
 }
 
 func (l *Lexer) readChar() {
-	if l.readPosition >= len(l.input) {
+	if l.readPosition >= len(l.Input) {
 		l.ch = 0
 	} else {
-		l.ch = l.input[l.readPosition]
+		l.ch = l.Input[l.readPosition]
 	}
 	l.position = l.readPosition
 	l.readPosition += 1
@@ -134,7 +134,7 @@ func (l *Lexer) readIdentifier() (string, token.Span) {
 	for isLetter(l.ch) {
 		l.readChar()
 	}
-	return l.input[startPos:l.position], token.Span{
+	return l.Input[startPos:l.position], token.Span{
 		Start: token.Location{Line: line, Column: startPos - l.lineByteOffset},
 		End:   token.Location{Line: line, Column: l.position - l.lineByteOffset},
 	}
@@ -146,7 +146,7 @@ func (l *Lexer) readNumber() (string, token.Span) {
 	for isDigit(l.ch) {
 		l.readChar()
 	}
-	return l.input[startPos:l.position], token.Span{
+	return l.Input[startPos:l.position], token.Span{
 		Start: token.Location{Line: line, Column: startPos - l.lineByteOffset},
 		End:   token.Location{Line: line, Column: l.position - l.lineByteOffset},
 	}
@@ -163,10 +163,10 @@ func (l *Lexer) skipWhitespace() {
 }
 
 func (l *Lexer) peekChar() byte {
-	if l.readPosition >= len(l.input) {
+	if l.readPosition >= len(l.Input) {
 		return 0
 	}
-	return l.input[l.readPosition]
+	return l.Input[l.readPosition]
 }
 
 func isLetter(ch byte) bool {

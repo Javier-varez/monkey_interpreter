@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 
@@ -37,12 +36,32 @@ var precedences = map[token.TokenType]int{
 type prefixParseFn func() ast.Expression
 type infixParseFn func(ast.Expression) ast.Expression
 
+type ParseError struct {
+	input    string
+	span     token.Span
+	errorMsg string
+}
+
+func (p *ParseError) Error() string {
+	// TODO(ja): Incorporate context information
+	return p.errorMsg
+}
+
+func (p *Parser) mkError(s token.Span, msg string) {
+	p.errors = append(p.errors, &ParseError{
+		input:    p.l.Input,
+		span:     s,
+		errorMsg: msg,
+	})
+}
+
 type Parser struct {
 	l              *lexer.Lexer
 	curToken       token.Token
 	peekToken      token.Token
 	prefixParseFns map[token.TokenType]prefixParseFn
 	infixParseFns  map[token.TokenType]infixParseFn
+	errors         []error
 }
 
 func New(l *lexer.Lexer) *Parser {
@@ -79,21 +98,19 @@ func (p *Parser) nextToken() {
 	p.peekToken = p.l.NextToken()
 }
 
-func (p *Parser) ParseProgram() (*ast.Program, error) {
+func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{
 		Statements: []ast.Statment{},
 	}
 
 	for p.curToken.Type != token.EOF {
-		stmt, err := p.parseStatement()
-		if err != nil {
-			return program, err
-		}
+		stmt := p.parseStatement()
 		program.Statements = append(program.Statements, stmt)
 		p.nextToken()
 	}
 
-	return program, nil
+	program.Diagnostics = p.errors
+	return program
 }
 
 func (p *Parser) parseIdentExpr() ast.Expression {
@@ -105,7 +122,7 @@ func (p *Parser) parseIntegerLiteralExpr() ast.Expression {
 
 	val, err := strconv.ParseInt(p.curToken.Literal, 10, 64)
 	if err != nil {
-		fmt.Printf("could not parse %q as integer\n", p.curToken.Literal)
+		p.mkError(p.curToken.Span, "Invalid integer literal. Could not be converted to a 64-bit 10-base integer.")
 		return nil
 	}
 	expr.Value = val
@@ -190,7 +207,7 @@ func (p *Parser) parseFnLiteralExpr() ast.Expression {
 	expr := &ast.FnLiteralExpr{}
 
 	if p.peekToken.Type != token.LPAREN {
-		// TODO(ja): Handle errors
+		p.mkError(p.peekToken.Span, "fn literal must be followed by argument list")
 		return nil
 	}
 	p.nextToken()
@@ -198,12 +215,12 @@ func (p *Parser) parseFnLiteralExpr() ast.Expression {
 
 	for p.curToken.Type != token.RPAREN {
 		if p.curToken.Type != token.IDENT {
-			// TODO(ja): Handle error
+			p.mkError(p.curToken.Span, "Parameters to an fn literal must be identifier expressions")
 			return nil
 		}
 
 		if p.peekToken.Type != token.COMMA && p.peekToken.Type != token.RPAREN {
-			// TODO(ja): Handle error
+			p.mkError(p.peekToken.Span, "Invalid token found in argument list of fn literal expression")
 			return nil
 		}
 
@@ -217,6 +234,7 @@ func (p *Parser) parseFnLiteralExpr() ast.Expression {
 	}
 
 	if p.peekToken.Type != token.LBRACE {
+		p.mkError(p.peekToken.Span, "Expected body of fn literal")
 		return nil
 	}
 	p.nextToken()
@@ -261,7 +279,7 @@ func (p *Parser) parseCallExpr(left ast.Expression) ast.Expression {
 		argExpr := p.parseExpression(LOWEST)
 
 		if p.peekToken.Type != token.COMMA && p.peekToken.Type != token.RPAREN {
-			// TODO(ja): Handle error
+			p.mkError(p.peekToken.Span, "Invalid delimiter token found in call expression argument list")
 			return nil
 		}
 
@@ -274,23 +292,26 @@ func (p *Parser) parseCallExpr(left ast.Expression) ast.Expression {
 	return expr
 }
 
-func (p *Parser) parseLetStatement() (*ast.LetStatement, error) {
+func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{}
 
 	if !p.curToken.IsLet() {
-		return nil, fmt.Errorf("Let expression does not start with `let`: %+v", p.curToken)
+		p.mkError(p.curToken.Span, "Let statement does not start with \"let\"")
+		return nil
 	}
 	stmt.LetToken = p.curToken
 	p.nextToken()
 
 	if p.curToken.Type != token.IDENT {
-		return nil, fmt.Errorf("Let expected an identifier: %+v", p.curToken)
+		p.mkError(p.curToken.Span, "Let statement expected an identifier")
+		return nil
 	}
 	stmt.IdentExpr = p.parseIdentExpr()
 	p.nextToken()
 
 	if p.curToken.Type != token.ASSIGN {
-		return nil, fmt.Errorf("Expected `=` in assignment operator: %+v", p.curToken)
+		p.mkError(p.curToken.Span, "Expected \"=\" in let statement")
+		return nil
 	}
 	stmt.AssignToken = p.curToken
 	p.nextToken()
@@ -302,14 +323,15 @@ func (p *Parser) parseLetStatement() (*ast.LetStatement, error) {
 		stmt.SemicolonToken = p.curToken
 	}
 
-	return stmt, nil
+	return stmt
 }
 
-func (p *Parser) parseReturnStatement() (*ast.ReturnStatement, error) {
+func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := &ast.ReturnStatement{}
 
 	if !p.curToken.IsReturn() {
-		return nil, fmt.Errorf("Return expression does not start with `return`: %+v", p.curToken)
+		p.mkError(p.curToken.Span, "Return statement does not begin with \"return\"")
+		return nil
 	}
 	stmt.ReturnToken = p.curToken
 	p.nextToken()
@@ -321,7 +343,7 @@ func (p *Parser) parseReturnStatement() (*ast.ReturnStatement, error) {
 		stmt.SemicolonToken = p.curToken
 	}
 
-	return stmt, nil
+	return stmt
 }
 
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
@@ -331,8 +353,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 
 	for p.peekToken.Type != token.RBRACE {
 		p.nextToken()
-		s, _ := p.parseStatement()
-		// TODO(ja): Handle errors
+		s := p.parseStatement()
 		stmt.Statements = append(stmt.Statements, s)
 	}
 
@@ -343,7 +364,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 func (p *Parser) parseExpression(precedence int) ast.Expression {
 	prefix, ok := p.prefixParseFns[p.curToken.Type]
 	if !ok || prefix == nil {
-		// TODO(ja): log error
+		p.mkError(p.curToken.Span, "Invalid token")
 		return nil
 	}
 
@@ -363,17 +384,17 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	return leftExp
 }
 
-func (p *Parser) parseExpressionStatement() (*ast.ExpressionStatement, error) {
+func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	stmt := &ast.ExpressionStatement{Token: p.curToken}
 
 	stmt.Expr = p.parseExpression(LOWEST)
 	if p.peekToken.Type == token.SEMICOLON {
 		p.nextToken()
 	}
-	return stmt, nil
+	return stmt
 }
 
-func (p *Parser) parseStatement() (ast.Statment, error) {
+func (p *Parser) parseStatement() ast.Statment {
 	switch p.curToken.Type {
 	case token.LET:
 		return p.parseLetStatement()
@@ -382,7 +403,6 @@ func (p *Parser) parseStatement() (ast.Statment, error) {
 	default:
 		return p.parseExpressionStatement()
 	}
-
 }
 
 func (p *Parser) peekPrecedence() int {

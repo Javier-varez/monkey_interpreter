@@ -23,7 +23,8 @@ type Statment interface {
 }
 
 type Program struct {
-	Statements []Statment
+	Statements  []Statment
+	Diagnostics []error
 }
 
 func (p *Program) Span() token.Span {
