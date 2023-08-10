@@ -11,8 +11,8 @@ import (
 func TestLetStatements(t *testing.T) {
 	input := `
 let x = 5;
-let y = 10;
-let foobar = 838383;
+let y = true;
+let foobar = x;
 `
 	l := lexer.New(input)
 	p := New(l)
@@ -31,14 +31,15 @@ let foobar = 838383;
 	}
 
 	tests := []struct {
-		ident string
+		ident         string
+		expectedValue interface{}
 	}{
-		{"x"}, {"y"}, {"foobar"},
+		{"x", 5}, {"y", true}, {"foobar", "x"},
 	}
 
 	for i, tt := range tests {
 		statement := program.Statements[i]
-		if !testLetStatement(t, statement, tt.ident) {
+		if !testLetStatement(t, statement, tt.ident, tt.expectedValue) {
 			return
 		}
 	}
@@ -52,7 +53,7 @@ func isIdentExpr(i ast.Expression, txt string) bool {
 	return identExpr.IdentToken.Literal == txt && identExpr.IdentToken.Type == token.IDENT
 }
 
-func testLetStatement(t *testing.T, statement ast.Statment, expectedIdent string) bool {
+func testLetStatement(t *testing.T, statement ast.Statment, expectedIdent string, expectedValue interface{}) bool {
 	letStatement, ok := statement.(*ast.LetStatement)
 	if !ok {
 		t.Errorf("Statement is not a let statement: %+v", statement)
@@ -69,14 +70,18 @@ func testLetStatement(t *testing.T, statement ast.Statment, expectedIdent string
 		return false
 	}
 
+	if !testLiteralExpression(t, letStatement.Expr, expectedValue) {
+		return false
+	}
+
 	return true
 }
 
 func TestReturnStatements(t *testing.T) {
 	input := `
 return 5;
-return 10;
-return 123456;
+return false;
+return ident;
 `
 	l := lexer.New(input)
 	p := New(l)
@@ -94,7 +99,11 @@ return 123456;
 		t.Fatalf("program.Statements does not contain 3 statements. got %d\n", len(program.Statements))
 	}
 
-	for _, tt := range program.Statements {
+	expected := []interface{}{
+		5, false, "ident",
+	}
+
+	for idx, tt := range program.Statements {
 		stmt, ok := tt.(*ast.ReturnStatement)
 		if !ok {
 			t.Errorf("Not a return statement: %+v", tt)
@@ -104,6 +113,8 @@ return 123456;
 		if !stmt.ReturnToken.IsReturn() {
 			t.Errorf("Return statement does not start with a return token: %+v", tt)
 		}
+
+		testLiteralExpression(t, stmt.Expr, expected[idx])
 	}
 }
 
@@ -399,12 +410,29 @@ func testIdentifier(t *testing.T, exp ast.Expression, expected string) bool {
 	return true
 }
 
+func testBoolLiteral(t *testing.T, exp ast.Expression, expected bool) bool {
+	boolLiteralExpr, ok := exp.(*ast.BoolLiteralExpr)
+	if !ok {
+		t.Errorf("Expression is not a bool literal: %T", exp)
+		return false
+	}
+
+	if boolLiteralExpr.Value != expected {
+		t.Errorf("Bool literal does not match. Expected %v, got %v", expected, boolLiteralExpr.Value)
+		return false
+	}
+
+	return true
+}
+
 func testLiteralExpression(t *testing.T, exp ast.Expression, expected interface{}) bool {
 	switch v := expected.(type) {
 	case int:
 		return testIntegerLiteral(t, exp, int64(v))
 	case int64:
 		return testIntegerLiteral(t, exp, v)
+	case bool:
+		return testBoolLiteral(t, exp, v)
 	case string:
 		return testIdentifier(t, exp, v)
 	}

@@ -295,11 +295,12 @@ func (p *Parser) parseLetStatement() (*ast.LetStatement, error) {
 	stmt.AssignToken = p.curToken
 	p.nextToken()
 
-	// TODO(ja): Parse actual expression instead of ignoring everything until semicolon
-	for p.curToken.Type != token.SEMICOLON {
+	stmt.Expr = p.parseExpression(LOWEST)
+
+	if p.peekToken.Type == token.SEMICOLON {
 		p.nextToken()
+		stmt.SemicolonToken = p.curToken
 	}
-	stmt.SemicolonToken = p.curToken
 
 	return stmt, nil
 }
@@ -313,12 +314,12 @@ func (p *Parser) parseReturnStatement() (*ast.ReturnStatement, error) {
 	stmt.ReturnToken = p.curToken
 	p.nextToken()
 
-	// TODO(ja): Parse actual expression instead of ignoring everything until semicolon
-	for p.curToken.Type != token.SEMICOLON {
-		p.nextToken()
-	}
+	stmt.Expr = p.parseExpression(LOWEST)
 
-	stmt.SemicolonToken = p.curToken
+	if p.peekToken.Type == token.SEMICOLON {
+		p.nextToken()
+		stmt.SemicolonToken = p.curToken
+	}
 
 	return stmt, nil
 }
