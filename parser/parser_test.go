@@ -700,3 +700,34 @@ func TestCallExpression(t *testing.T) {
 		return
 	}
 }
+
+func TestEmptyCallExpression(t *testing.T) {
+	input := `add();`
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	checkDiagnostics(t, program)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	callExpr, ok := stmt.Expr.(*ast.CallExpr)
+	if !ok {
+		t.Fatalf("Not a call expression: %T", stmt.Expr)
+	}
+
+	if !testIdentifier(t, callExpr.CallableExpr, "add") {
+		return
+	}
+
+	if len(callExpr.Args) != 0 {
+		t.Fatalf("Unexpected number of arguments in callExpr.Args: %d", len(callExpr.Args))
+	}
+}

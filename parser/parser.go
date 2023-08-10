@@ -282,9 +282,9 @@ func (p *Parser) parseCallExpr(left ast.Expression) ast.Expression {
 		Args:         []ast.Expression{},
 	}
 
-	for p.curToken.Type != token.RPAREN {
-		p.nextToken()
+	p.nextToken()
 
+	for p.curToken.Type != token.RPAREN {
 		argExpr := p.parseExpression(LOWEST)
 
 		if p.peekToken.Type != token.COMMA && p.peekToken.Type != token.RPAREN {
@@ -294,6 +294,9 @@ func (p *Parser) parseCallExpr(left ast.Expression) ast.Expression {
 
 		expr.Args = append(expr.Args, argExpr)
 		p.nextToken()
+		if p.curToken.Type == token.COMMA {
+			p.nextToken()
+		}
 	}
 
 	expr.Rparen = p.curToken
