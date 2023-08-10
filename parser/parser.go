@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/javier-varez/monkey_interpreter/ast"
@@ -51,6 +52,9 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFns[token.INT] = p.parseIntegerLiteralExpr
 	p.prefixParseFns[token.BANG] = p.parsePrefixExpr
 	p.prefixParseFns[token.MINUS] = p.parsePrefixExpr
+	p.prefixParseFns[token.TRUE] = p.parseBooleanLiteralExpr
+	p.prefixParseFns[token.FALSE] = p.parseBooleanLiteralExpr
+	p.prefixParseFns[token.LPAREN] = p.parseGroupedExpr
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.infixParseFns[token.PLUS] = p.parseInfixExpr
 	p.infixParseFns[token.MINUS] = p.parseInfixExpr
@@ -97,12 +101,41 @@ func (p *Parser) parseIntegerLiteralExpr() ast.Expression {
 
 	val, err := strconv.ParseInt(p.curToken.Literal, 10, 64)
 	if err != nil {
-		fmt.Printf("could not parse %q as integer", p.curToken.Literal)
+		fmt.Printf("could not parse %q as integer\n", p.curToken.Literal)
 		return nil
 	}
 	expr.Value = val
 
 	return expr
+}
+
+func (p *Parser) parseBooleanLiteralExpr() ast.Expression {
+	if p.curToken.Type == token.FALSE {
+		return &ast.BoolLiteralExpr{
+			Token: p.curToken,
+			Value: false,
+		}
+	} else if p.curToken.Type == token.TRUE {
+		return &ast.BoolLiteralExpr{
+			Token: p.curToken,
+			Value: true,
+		}
+	}
+	log.Fatalf("Unparsable boolean literal expression: %v\n", p.curToken)
+	return nil
+}
+
+func (p *Parser) parseGroupedExpr() ast.Expression {
+	p.nextToken()
+
+	exp := p.parseExpression(LOWEST)
+
+	if p.peekToken.Type != token.RPAREN {
+		return nil
+	}
+
+	p.nextToken()
+	return exp
 }
 
 func (p *Parser) parsePrefixExpr() ast.Expression {

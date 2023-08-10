@@ -2,6 +2,7 @@ package ast
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/javier-varez/monkey_interpreter/token"
 )
@@ -170,4 +171,19 @@ func (expr *InfixExpr) Span() token.Span {
 
 func (expr *InfixExpr) String() string {
 	return "(" + expr.LeftExpr.String() + expr.OperatorToken.Literal + expr.RightExpr.String() + ")"
+}
+
+type BoolLiteralExpr struct {
+	Token token.Token
+	Value bool
+}
+
+func (expr *BoolLiteralExpr) expressionNode() {}
+func (expr *BoolLiteralExpr) Span() token.Span {
+	// TODO(ja): Implement
+	return token.Span{}
+}
+
+func (expr *BoolLiteralExpr) String() string {
+	return fmt.Sprint(expr.Value)
 }
