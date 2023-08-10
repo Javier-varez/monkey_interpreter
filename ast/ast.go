@@ -211,8 +211,10 @@ func (expr *BoolLiteralExpr) String() string {
 }
 
 type IfExpr struct {
+	IfToken     token.Token
 	Condition   Expression
 	Consequence *BlockStatement
+	ElseToken   *token.Token
 	Alternative *BlockStatement
 }
 
@@ -237,8 +239,9 @@ func (expr *IfExpr) String() string {
 }
 
 type FnLiteralExpr struct {
-	Args []*IdentifierExpr
-	Body *BlockStatement
+	FnToken token.Token
+	Args    []*IdentifierExpr
+	Body    *BlockStatement
 }
 
 func (expr *FnLiteralExpr) expressionNode() {}
@@ -250,7 +253,8 @@ func (expr *FnLiteralExpr) Span() token.Span {
 func (expr *FnLiteralExpr) String() string {
 	var out bytes.Buffer
 
-	out.WriteString("fn(")
+	out.WriteString(expr.FnToken.Literal)
+	out.WriteString("(")
 	for i, arg := range expr.Args {
 		out.WriteString(arg.String())
 		if i != len(expr.Args)-1 {
@@ -259,6 +263,35 @@ func (expr *FnLiteralExpr) String() string {
 	}
 	out.WriteString(") ")
 	out.WriteString(expr.Body.String())
+
+	return out.String()
+}
+
+type CallExpr struct {
+	CallableExpr Expression
+	Lparen       token.Token
+	Args         []Expression
+	Rparen       token.Token
+}
+
+func (expr *CallExpr) expressionNode() {}
+func (expr *CallExpr) Span() token.Span {
+	// TODO(ja): Implement
+	return token.Span{}
+}
+
+func (expr *CallExpr) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(expr.CallableExpr.String())
+	out.WriteString(expr.Lparen.Literal)
+	for i, arg := range expr.Args {
+		out.WriteString(arg.String())
+		if i != len(expr.Args)-1 {
+			out.WriteString(",")
+		}
+	}
+	out.WriteString(expr.Rparen.Literal)
 
 	return out.String()
 }

@@ -343,6 +343,8 @@ func TestPrecedence(t *testing.T) {
 		{"2 / (5 + 5)", "(2/(5+5))"},
 		{"-(5 + 5)", "(-(5+5))"},
 		{"!(true==true)", "(!(true==true))"},
+		{"a + add(b * c) + d", "((a+add((b*c)))+d)"},
+		{"add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))", "add(a,b,1,(2*3),(4+5),add(6,(7*8)))"},
 	}
 
 	for _, test := range tests {
@@ -640,5 +642,50 @@ func TestFnLiteralExpressionParams(t *testing.T) {
 				return
 			}
 		}
+	}
+}
+
+func TestCallExpression(t *testing.T) {
+	input := `add(1, 2 * 3, 4 + 5);`
+	l := lexer.New(input)
+	p := New(l)
+
+	program, error := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	if error != nil {
+		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	callExpr, ok := stmt.Expr.(*ast.CallExpr)
+	if !ok {
+		t.Fatalf("Not a call expression: %T", stmt.Expr)
+	}
+
+	if !testIdentifier(t, callExpr.CallableExpr, "add") {
+		return
+	}
+
+	if len(callExpr.Args) != 3 {
+		t.Fatalf("Unexpected number of arguments in callExpr.Args: %d", len(callExpr.Args))
+	}
+
+	if !testLiteralExpression(t, callExpr.Args[0], 1) {
+		return
+	}
+
+	if !testInfixExpression(t, callExpr.Args[1], 2, "*", 3) {
+		return
+	}
+
+	if !testInfixExpression(t, callExpr.Args[2], 4, "+", 5) {
+		return
 	}
 }

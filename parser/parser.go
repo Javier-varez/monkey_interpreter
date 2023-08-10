@@ -31,6 +31,7 @@ var precedences = map[token.TokenType]int{
 	token.MINUS:    SUM,
 	token.ASTERISK: PRODUCT,
 	token.SLASH:    PRODUCT,
+	token.LPAREN:   CALL,
 }
 
 type prefixParseFn func() ast.Expression
@@ -66,6 +67,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.infixParseFns[token.NOT_EQ] = p.parseInfixExpr
 	p.infixParseFns[token.GT] = p.parseInfixExpr
 	p.infixParseFns[token.LT] = p.parseInfixExpr
+	p.infixParseFns[token.LPAREN] = p.parseCallExpr
 
 	p.nextToken()
 	p.nextToken()
@@ -141,7 +143,9 @@ func (p *Parser) parseGroupedExpr() ast.Expression {
 }
 
 func (p *Parser) parseIfExpr() ast.Expression {
-	expr := ast.IfExpr{}
+	expr := ast.IfExpr{
+		IfToken: p.curToken,
+	}
 
 	if p.peekToken.Type != token.LPAREN {
 		return nil
@@ -169,6 +173,8 @@ func (p *Parser) parseIfExpr() ast.Expression {
 		return &expr
 	}
 	p.nextToken()
+
+	expr.ElseToken = &p.curToken
 
 	if p.peekToken.Type != token.LBRACE {
 		return nil
@@ -239,6 +245,32 @@ func (p *Parser) parseInfixExpr(left ast.Expression) ast.Expression {
 	p.nextToken()
 
 	expr.RightExpr = p.parseExpression(precedence)
+	return expr
+}
+
+func (p *Parser) parseCallExpr(left ast.Expression) ast.Expression {
+	expr := &ast.CallExpr{
+		CallableExpr: left,
+		Lparen:       p.curToken,
+		Args:         []ast.Expression{},
+	}
+
+	for p.curToken.Type != token.RPAREN {
+		p.nextToken()
+
+		argExpr := p.parseExpression(LOWEST)
+
+		if p.peekToken.Type != token.COMMA && p.peekToken.Type != token.RPAREN {
+			// TODO(ja): Handle error
+			return nil
+		}
+
+		expr.Args = append(expr.Args, argExpr)
+		p.nextToken()
+	}
+
+	expr.Rparen = p.curToken
+
 	return expr
 }
 
