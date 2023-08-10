@@ -366,3 +366,177 @@ func TestPrecedence(t *testing.T) {
 		}
 	}
 }
+
+func testIntegerLiteral(t *testing.T, exp ast.Expression, expected int64) bool {
+	intLiteralExpr, ok := exp.(*ast.IntegerLiteralExpr)
+	if !ok {
+		t.Errorf("Expression is not an integer literal: %T", exp)
+		return false
+	}
+
+	if intLiteralExpr.Value != expected {
+		t.Errorf("Integer literal does not match. Expected %d, got %d", expected, intLiteralExpr.Value)
+		return false
+	}
+
+	return true
+}
+
+func testIdentifier(t *testing.T, exp ast.Expression, expected string) bool {
+	identExpr, ok := exp.(*ast.IdentifierExpr)
+	if !ok {
+		t.Errorf("Not an IdentifierExpr: %T", exp)
+		return false
+	}
+
+	if identExpr.IdentToken.Literal != expected {
+		t.Errorf("IdentifierExpr literal does not match. Expected %q, got %q", expected, identExpr.IdentToken.Literal)
+		return false
+	}
+
+	return true
+}
+
+func testLiteralExpression(t *testing.T, exp ast.Expression, expected interface{}) bool {
+	switch v := expected.(type) {
+	case int:
+		return testIntegerLiteral(t, exp, int64(v))
+	case int64:
+		return testIntegerLiteral(t, exp, v)
+	case string:
+		return testIdentifier(t, exp, v)
+	}
+	t.Errorf("type of exp not handled. got=%T", exp)
+	return false
+}
+
+func testInfixExpression(t *testing.T, expr ast.Expression, left interface{}, operator string, right interface{}) bool {
+	infixExpr, ok := expr.(*ast.InfixExpr)
+	if !ok {
+		t.Errorf("Expression is not an InfixExpr: %T", expr)
+		return false
+	}
+
+	if infixExpr.OperatorToken.Literal != operator {
+		t.Errorf("Unexpected operator. got %q, expected %q", infixExpr.OperatorToken.Literal, operator)
+		return false
+	}
+
+	if !testLiteralExpression(t, infixExpr.LeftExpr, left) {
+		t.Errorf("Error validating left literal expression. got %v", infixExpr.RightExpr)
+		return false
+	}
+	if !testLiteralExpression(t, infixExpr.RightExpr, right) {
+		t.Errorf("Error validating right literal expression. got %v", infixExpr.RightExpr)
+		return false
+	}
+
+	return true
+}
+
+func TestIfExpression(t *testing.T) {
+	input := `if (x < y) { x }`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program, error := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	if error != nil {
+		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	ifExpr, ok := stmt.Expr.(*ast.IfExpr)
+	if !ok {
+		t.Fatalf("Not an if expression: %T", stmt.Expr)
+	}
+
+	if !testInfixExpression(t, ifExpr.Condition, "x", "<", "y") {
+		t.Fatalf("Error in condition of if expr")
+	}
+
+	if len(ifExpr.Consequence.Statements) != 1 {
+		t.Fatalf("Unexpected length for ifExpr.Consequence.Statements: %d", len(ifExpr.Consequence.Statements))
+	}
+
+	consequenceExprStmt, ok := ifExpr.Consequence.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Consequence does not contain an expression statement")
+	}
+
+	if !testIdentifier(t, consequenceExprStmt.Expr, "x") {
+		t.Fatalf("Error in condition of if expr")
+	}
+
+	if ifExpr.Alternative != nil {
+		t.Fatalf("Has an unexpected alternative")
+	}
+}
+
+func TestIfElseExpression(t *testing.T) {
+	input := `if (x < y) { x } else { y }`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program, error := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	if error != nil {
+		t.Fatalf("ParseProgram() returned an error: %v", error.Error())
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	ifExpr, ok := stmt.Expr.(*ast.IfExpr)
+	if !ok {
+		t.Fatalf("Not an if expression: %T", stmt.Expr)
+	}
+
+	if !testInfixExpression(t, ifExpr.Condition, "x", "<", "y") {
+		t.Fatalf("Error in condition of if expr")
+	}
+
+	if len(ifExpr.Consequence.Statements) != 1 {
+		t.Fatalf("Unexpected length for ifExpr.Consequence.Statements: %d", len(ifExpr.Consequence.Statements))
+	}
+
+	consequenceExprStmt, ok := ifExpr.Consequence.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Consequence does not contain an expression statement")
+	}
+
+	if !testIdentifier(t, consequenceExprStmt.Expr, "x") {
+		t.Fatalf("Error in consequence of if expr")
+	}
+
+	if ifExpr.Alternative == nil {
+		t.Fatalf("No alternative")
+	}
+
+	if len(ifExpr.Alternative.Statements) != 1 {
+		t.Fatalf("Unexpected length for ifExpr.Alternative.Statements: %d", len(ifExpr.Alternative.Statements))
+	}
+
+	alternativeExprStmt, ok := ifExpr.Alternative.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Alternative does not contain an expression statement")
+	}
+
+	if !testIdentifier(t, alternativeExprStmt.Expr, "y") {
+		t.Fatalf("Error in alternative of if expr")
+	}
+}

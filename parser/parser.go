@@ -55,6 +55,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFns[token.TRUE] = p.parseBooleanLiteralExpr
 	p.prefixParseFns[token.FALSE] = p.parseBooleanLiteralExpr
 	p.prefixParseFns[token.LPAREN] = p.parseGroupedExpr
+	p.prefixParseFns[token.IF] = p.parseIfExpr
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.infixParseFns[token.PLUS] = p.parseInfixExpr
 	p.infixParseFns[token.MINUS] = p.parseInfixExpr
@@ -138,6 +139,46 @@ func (p *Parser) parseGroupedExpr() ast.Expression {
 	return exp
 }
 
+func (p *Parser) parseIfExpr() ast.Expression {
+	expr := ast.IfExpr{}
+
+	if p.peekToken.Type != token.LPAREN {
+		return nil
+	}
+
+	p.nextToken()
+	p.nextToken()
+
+	expr.Condition = p.parseExpression(LOWEST)
+
+	if p.peekToken.Type != token.RPAREN {
+		return nil
+	}
+	p.nextToken()
+
+	if p.peekToken.Type != token.LBRACE {
+		return nil
+	}
+	p.nextToken()
+
+	expr.Consequence = p.parseBlockStatement()
+
+	if p.peekToken.Type != token.ELSE {
+		// No else condition, return now
+		return &expr
+	}
+	p.nextToken()
+
+	if p.peekToken.Type != token.LBRACE {
+		return nil
+	}
+	p.nextToken()
+
+	expr.Alternative = p.parseBlockStatement()
+
+	return &expr
+}
+
 func (p *Parser) parsePrefixExpr() ast.Expression {
 	expr := &ast.PrefixExpr{
 		OperatorToken: p.curToken,
@@ -208,6 +249,22 @@ func (p *Parser) parseReturnStatement() (*ast.ReturnStatement, error) {
 	stmt.SemicolonToken = p.curToken
 
 	return stmt, nil
+}
+
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	stmt := &ast.BlockStatement{
+		Lbrace: p.curToken,
+	}
+
+	for p.peekToken.Type != token.RBRACE {
+		p.nextToken()
+		s, _ := p.parseStatement()
+		// TODO(ja): Handle errors
+		stmt.Statements = append(stmt.Statements, s)
+	}
+
+	p.nextToken()
+	return stmt
 }
 
 func (p *Parser) parseExpression(precedence int) ast.Expression {

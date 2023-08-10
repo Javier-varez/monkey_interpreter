@@ -113,6 +113,28 @@ func (stmt *ExpressionStatement) String() string {
 	return ""
 }
 
+type BlockStatement struct {
+	Lbrace, Rbrace token.Token
+	Statements     []Statment
+}
+
+func (stmt *BlockStatement) statementNode() {}
+func (stmt *BlockStatement) Span() token.Span {
+	// TODO(ja): Implement
+	return token.Span{}
+}
+func (stmt *BlockStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(stmt.Lbrace.Literal)
+	for _, stmt := range stmt.Statements {
+		out.WriteString(stmt.String())
+	}
+	out.WriteString(stmt.Rbrace.Literal)
+
+	return out.String()
+}
+
 type IdentifierExpr struct {
 	IdentToken token.Token
 }
@@ -186,4 +208,30 @@ func (expr *BoolLiteralExpr) Span() token.Span {
 
 func (expr *BoolLiteralExpr) String() string {
 	return fmt.Sprint(expr.Value)
+}
+
+type IfExpr struct {
+	Condition   Expression
+	Consequence *BlockStatement
+	Alternative *BlockStatement
+}
+
+func (expr *IfExpr) expressionNode() {}
+func (expr *IfExpr) Span() token.Span {
+	// TODO(ja): Implement
+	return token.Span{}
+}
+
+func (expr *IfExpr) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("if")
+	out.WriteString(expr.Condition.String())
+	out.WriteString(" ")
+	out.WriteString(expr.Consequence.String())
+	if expr.Alternative != nil {
+		out.WriteString(expr.Alternative.String())
+	}
+
+	return out.String()
 }
