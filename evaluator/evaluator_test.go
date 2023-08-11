@@ -6,6 +6,7 @@ import (
 	"github.com/javier-varez/monkey_interpreter/lexer"
 	"github.com/javier-varez/monkey_interpreter/object"
 	"github.com/javier-varez/monkey_interpreter/parser"
+	"github.com/javier-varez/monkey_interpreter/token"
 )
 
 func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
@@ -59,6 +60,26 @@ func testObject(t *testing.T, obj object.Object, inner interface{}) bool {
 	}
 
 	return false
+}
+
+func testErrorObject(t *testing.T, obj object.Object, span token.Span, msg string) bool {
+	errorObj, ok := obj.(*object.Error)
+	if !ok {
+		t.Errorf("Object is not an error object: %v", obj)
+		return false
+	}
+
+	if errorObj.Span != span {
+		t.Errorf("Unexpected span value: expected %v, got %v", span, errorObj.Span)
+		return false
+	}
+
+	if errorObj.Message != msg {
+		t.Errorf("Unexpected error messge value: expected %q, got %q", msg, errorObj.Message)
+		return false
+	}
+
+	return true
 }
 
 func testEval(input string) object.Object {
@@ -219,5 +240,31 @@ func TestEvalReturnStatements(t *testing.T) {
 	for _, tt := range tests {
 		result := testEval(tt.input)
 		testObject(t, result, tt.output)
+	}
+}
+
+func TestEvalRuntimeErrors(t *testing.T) {
+	mkSpan := func(start, end int) token.Span {
+		return token.Span{
+			Start: token.Location{Line: 0, Column: start},
+			End:   token.Location{Line: 0, Column: end},
+		}
+	}
+
+	tests := []struct {
+		input     string
+		errorSpan token.Span
+		errorMsg  string
+	}{
+		{"if (10 + true) {}", mkSpan(9, 13), "Expression does not evaluate to an integer object"},
+		{"if (true + 10) {}", mkSpan(4, 8), "Expression does not evaluate to an integer object"},
+		{"if (!10) {}", mkSpan(4, 7), "\"!\" requires a boolean argument"},
+		{"-true", mkSpan(0, 5), "\"-\" requires an integer argument"},
+		{"if (10) {}", mkSpan(4, 6), "Condition must evaluate to a boolean object"},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testErrorObject(t, result, tt.errorSpan, tt.errorMsg)
 	}
 }
