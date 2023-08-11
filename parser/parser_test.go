@@ -12,7 +12,7 @@ func checkDiagnostics(t *testing.T, program *ast.Program) {
 	if len(program.Diagnostics) != 0 {
 		t.Errorf("Diagnostics in program:")
 		for _, err := range program.Diagnostics {
-			t.Errorf("\t[%d][%d] %s", err.Span().Start.Line, err.Span().Start.Column, err.Error())
+			t.Errorf("%s", err.ContextualError())
 		}
 		t.Fatalf("Unrecoverable program diagnostics")
 	}

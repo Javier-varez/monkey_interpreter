@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/javier-varez/monkey_interpreter/ast"
 	"github.com/javier-varez/monkey_interpreter/token"
 )
 
@@ -16,6 +17,7 @@ const (
 	NULL_OBJ         = "NULL"
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	ERROR_VALUE_OBJ  = "ERROR_VALUE"
+	FUNCTION_OBJ     = "FUNCTION"
 )
 
 type Object interface {
@@ -130,4 +132,30 @@ func (e *Error) ContextualError(input string) string {
 
 	buffer.WriteString(fmt.Sprintf("\t%s%s%s\n", RED, e.Message, RESET_COLOR))
 	return buffer.String()
+}
+
+type Function struct {
+	Args []*ast.IdentifierExpr
+	Body *ast.BlockStatement
+	Env  *Environment
+}
+
+func (f *Function) Type() ObjectType {
+	return FUNCTION_OBJ
+}
+
+func (f *Function) Inspect() string {
+	var out bytes.Buffer
+
+	out.WriteString("fn(")
+	for i, arg := range f.Args {
+		out.WriteString(arg.String())
+		if i != len(f.Args)-1 {
+			out.WriteString(",")
+		}
+	}
+	out.WriteString(") ")
+	out.WriteString(f.Body.String())
+
+	return out.String()
 }

@@ -3,6 +3,7 @@ package evaluator
 import (
 	"testing"
 
+	"github.com/javier-varez/monkey_interpreter/ast"
 	"github.com/javier-varez/monkey_interpreter/lexer"
 	"github.com/javier-varez/monkey_interpreter/object"
 	"github.com/javier-varez/monkey_interpreter/parser"
@@ -279,6 +280,83 @@ func TestEvalLetStatements(t *testing.T) {
 		{"let a = 5; a", 5},
 		{"let b = true; b", true},
 		{"let a = 100; let b = 200; let c = 323; let d = a * b; d + c", 20323},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
+	}
+}
+
+func TestEvalFunctionLiterals(t *testing.T) {
+	input := "fn(x) { x + 2; }"
+
+	result := testEval(input)
+
+	if result.Type() != object.FUNCTION_OBJ {
+		t.Fatalf("Not a function object: %v", result)
+	}
+
+	fn := result.(*object.Function)
+
+	if len(fn.Args) != 1 {
+		t.Fatalf("Unexpected number of args: %d", len(fn.Args))
+	}
+
+	if fn.Args[0].IdentToken.Literal != "x" {
+		t.Fatalf("Unexpected literal for arg[0]: %s", fn.Args[0].IdentToken.Literal)
+	}
+
+	if len(fn.Body.Statements) != 1 {
+		t.Fatalf("Unexpected number of statements: %d", len(fn.Body.Statements))
+	}
+
+	exprStatement, ok := fn.Body.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Body statement is not an expression statement")
+	}
+
+	infixExpr, ok := exprStatement.Expr.(*ast.InfixExpr)
+	if !ok {
+		t.Fatalf("Expr statement is not an infix expression")
+	}
+
+	if infixExpr.LeftExpr.String() != "x" {
+		t.Fatalf("Invalid left arg: %v", infixExpr.LeftExpr.String())
+	}
+
+	if infixExpr.RightExpr.String() != "2" {
+		t.Fatalf("Invalid right arg: %v", infixExpr.RightExpr.String())
+	}
+
+	if infixExpr.OperatorToken.Literal != token.PLUS {
+		t.Fatalf("Unexpected operator in infix expr: %s", infixExpr.OperatorToken.Literal)
+	}
+}
+
+func TestEvalCallExpressions(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"let x = 100; let y = 100; let add = fn(x, y) { return x + y; }; add(3, add(4, 3));", 10},
+		{"let x = 100; let y = 100; let add = fn(x, y) { return x + y; }; add(3, add(4, 3)); x + y", 200},
+		{"let x = 100; let add = fn(a) { return a + x; }; let x = 200; add(1)", 101},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
+	}
+}
+
+func TestClosures(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"let makeAddN = fn(x) { fn(y) { x + y } }; let addTwo = makeAddN(2); addTwo(123)", 125},
+		{"let makeAddN = fn(x) { fn(y) { x + y } }; let addTwo = makeAddN(2); let addThree = makeAddN(3); addThree(123)", 126},
 	}
 
 	for _, tt := range tests {

@@ -282,11 +282,61 @@ func evalLetStatement(stmt *ast.LetStatement, env *object.Environment) object.Ob
 	return env.Set(stmt.IdentExpr.(*ast.IdentifierExpr).IdentToken.Literal, obj)
 }
 
-func evalIdentifierExpression(expr *ast.IdentifierExpr, env *object.Environment) object.Object {
+func evalIdentifierExpr(expr *ast.IdentifierExpr, env *object.Environment) object.Object {
 	if obj, ok := env.Get(expr.IdentToken.Literal); ok {
 		return obj
 	}
 	return mkError(expr.Span(), "Identifier not found")
+}
+
+func evalFnLiteralExpr(expr *ast.FnLiteralExpr, env *object.Environment) object.Object {
+	return &object.Function{
+		Args: expr.Args,
+		Body: expr.Body,
+		Env:  env.Copy(),
+	}
+}
+
+func evalCallExpr(expr *ast.CallExpr, env *object.Environment) object.Object {
+	fn := Eval(expr.CallableExpr, env)
+	if fn.Type() == object.ERROR_VALUE_OBJ {
+		return fn
+	}
+
+	if fn.Type() != object.FUNCTION_OBJ {
+		return mkError(expr.CallableExpr.Span(), "Call expression must have a callable type (function literal or identifier bounded to a function)")
+	}
+
+	fnObj := fn.(*object.Function)
+
+	if len(fnObj.Args) != len(expr.Args) {
+		return mkError(expr.Span(), fmt.Sprintf("Callable takes %d arguments, but %d were supplied", len(fnObj.Args), len(expr.Args)))
+	}
+
+	// Eval args
+	var args []object.Object
+	for _, arg := range expr.Args {
+		res := Eval(arg, env)
+		if res.Type() == object.ERROR_VALUE_OBJ {
+			return res
+		}
+		args = append(args, res)
+	}
+
+	// Bound args to new environment
+	newEnv := object.NewEnclosedEnvironment(fnObj.Env)
+	for i := range expr.Args {
+		newEnv.Set(fnObj.Args[i].IdentToken.Literal, args[i])
+	}
+
+	result := Eval(fnObj.Body, newEnv)
+
+	// Unwrap return so that it does not cross the boundary of the function
+	if result.Type() == object.RETURN_VALUE_OBJ {
+		returnObject := result.(*object.Return)
+		result = returnObject.Value
+	}
+	return result
 }
 
 func Eval(node ast.Node, env *object.Environment) object.Object {
@@ -322,7 +372,13 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return evalLetStatement(node, env)
 
 	case *ast.IdentifierExpr:
-		return evalIdentifierExpression(node, env)
+		return evalIdentifierExpr(node, env)
+
+	case *ast.FnLiteralExpr:
+		return evalFnLiteralExpr(node, env)
+
+	case *ast.CallExpr:
+		return evalCallExpr(node, env)
 
 	default:
 		log.Fatalf("Unimplemented evaluation of node type: %T\n", node)
