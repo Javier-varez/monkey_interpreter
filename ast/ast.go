@@ -34,8 +34,11 @@ type Program struct {
 }
 
 func (p *Program) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	if len(p.Statements) == 0 {
+		return token.Span{}
+	}
+
+	return p.Statements[0].Span().Join(p.Statements[len(p.Statements)-1].Span())
 }
 
 func (p *Program) String() string {
@@ -53,13 +56,21 @@ type LetStatement struct {
 	IdentExpr      Expression
 	AssignToken    token.Token
 	Expr           Expression
-	SemicolonToken token.Token
+	SemicolonToken *token.Token
 }
 
 func (stmt *LetStatement) statementNode() {}
+
 func (stmt *LetStatement) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	var endSpan token.Span
+
+	if stmt.SemicolonToken != nil {
+		endSpan = stmt.SemicolonToken.Span
+	} else {
+		endSpan = stmt.Expr.Span()
+	}
+
+	return stmt.LetToken.Span.Join(endSpan)
 }
 func (stmt *LetStatement) String() string {
 	var buf bytes.Buffer
@@ -72,7 +83,9 @@ func (stmt *LetStatement) String() string {
 	if stmt.Expr != nil {
 		buf.WriteString(stmt.Expr.String())
 	}
-	buf.WriteString(stmt.SemicolonToken.Literal)
+	if stmt.SemicolonToken != nil {
+		buf.WriteString(stmt.SemicolonToken.Literal)
+	}
 
 	return buf.String()
 }
@@ -80,13 +93,21 @@ func (stmt *LetStatement) String() string {
 type ReturnStatement struct {
 	ReturnToken    token.Token
 	Expr           Expression
-	SemicolonToken token.Token
+	SemicolonToken *token.Token
 }
 
 func (stmt *ReturnStatement) statementNode() {}
+
 func (stmt *ReturnStatement) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	var endSpan token.Span
+
+	if stmt.SemicolonToken != nil {
+		endSpan = stmt.SemicolonToken.Span
+	} else {
+		endSpan = stmt.Expr.Span()
+	}
+
+	return stmt.ReturnToken.Span.Join(endSpan)
 }
 
 func (stmt *ReturnStatement) String() string {
@@ -96,28 +117,42 @@ func (stmt *ReturnStatement) String() string {
 	if stmt.Expr != nil {
 		buf.WriteString(stmt.Expr.String())
 	}
-	buf.WriteString(stmt.SemicolonToken.Literal)
+	if stmt.SemicolonToken != nil {
+		buf.WriteString(stmt.SemicolonToken.Literal)
+	}
 
 	return buf.String()
 }
 
 type ExpressionStatement struct {
-	Token          token.Token // First token in the expression
 	Expr           Expression
-	SemicolonToken *token.Token // Is optional
+	SemicolonToken *token.Token
 }
 
 func (stmt *ExpressionStatement) statementNode() {}
+
 func (stmt *ExpressionStatement) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	var endSpan token.Span
+
+	if stmt.SemicolonToken != nil {
+		endSpan = stmt.SemicolonToken.Span
+	} else {
+		endSpan = stmt.Expr.Span()
+	}
+
+	return stmt.Expr.Span().Join(endSpan)
+
 }
 
 func (stmt *ExpressionStatement) String() string {
+	var buffer bytes.Buffer
 	if stmt.Expr != nil {
-		return stmt.Expr.String()
+		buffer.WriteString(stmt.Expr.String())
 	}
-	return ""
+	if stmt.SemicolonToken != nil {
+		buffer.WriteString(stmt.SemicolonToken.Literal)
+	}
+	return buffer.String()
 }
 
 type BlockStatement struct {
@@ -126,10 +161,11 @@ type BlockStatement struct {
 }
 
 func (stmt *BlockStatement) statementNode() {}
+
 func (stmt *BlockStatement) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	return stmt.Lbrace.Span.Join(stmt.Rbrace.Span)
 }
+
 func (stmt *BlockStatement) String() string {
 	var out bytes.Buffer
 
@@ -147,9 +183,9 @@ type IdentifierExpr struct {
 }
 
 func (expr *IdentifierExpr) expressionNode() {}
+
 func (expr *IdentifierExpr) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	return expr.IdentToken.Span
 }
 
 func (expr *IdentifierExpr) String() string {
@@ -162,9 +198,9 @@ type IntegerLiteralExpr struct {
 }
 
 func (expr *IntegerLiteralExpr) expressionNode() {}
+
 func (expr *IntegerLiteralExpr) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	return expr.IntToken.Span
 }
 
 func (expr *IntegerLiteralExpr) String() string {
@@ -177,9 +213,9 @@ type PrefixExpr struct {
 }
 
 func (expr *PrefixExpr) expressionNode() {}
+
 func (expr *PrefixExpr) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	return expr.OperatorToken.Span.Join(expr.InnerExpr.Span())
 }
 
 func (expr *PrefixExpr) String() string {
@@ -193,9 +229,9 @@ type InfixExpr struct {
 }
 
 func (expr *InfixExpr) expressionNode() {}
+
 func (expr *InfixExpr) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	return expr.LeftExpr.Span().Join(expr.RightExpr.Span())
 }
 
 func (expr *InfixExpr) String() string {
@@ -208,9 +244,9 @@ type BoolLiteralExpr struct {
 }
 
 func (expr *BoolLiteralExpr) expressionNode() {}
+
 func (expr *BoolLiteralExpr) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	return expr.Token.Span
 }
 
 func (expr *BoolLiteralExpr) String() string {
@@ -226,9 +262,15 @@ type IfExpr struct {
 }
 
 func (expr *IfExpr) expressionNode() {}
+
 func (expr *IfExpr) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	var endSpan token.Span
+	if expr.Alternative != nil {
+		endSpan = expr.Alternative.Span()
+	} else {
+		endSpan = expr.Condition.Span()
+	}
+	return expr.IfToken.Span.Join(endSpan)
 }
 
 func (expr *IfExpr) String() string {
@@ -238,6 +280,9 @@ func (expr *IfExpr) String() string {
 	out.WriteString(expr.Condition.String())
 	out.WriteString(" ")
 	out.WriteString(expr.Consequence.String())
+	if expr.ElseToken != nil {
+		out.WriteString(expr.ElseToken.Literal)
+	}
 	if expr.Alternative != nil {
 		out.WriteString(expr.Alternative.String())
 	}
@@ -252,9 +297,9 @@ type FnLiteralExpr struct {
 }
 
 func (expr *FnLiteralExpr) expressionNode() {}
+
 func (expr *FnLiteralExpr) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	return expr.FnToken.Span.Join(expr.Body.Span())
 }
 
 func (expr *FnLiteralExpr) String() string {
@@ -282,9 +327,9 @@ type CallExpr struct {
 }
 
 func (expr *CallExpr) expressionNode() {}
+
 func (expr *CallExpr) Span() token.Span {
-	// TODO(ja): Implement
-	return token.Span{}
+	return expr.CallableExpr.Span().Join(expr.Rparen.Span)
 }
 
 func (expr *CallExpr) String() string {

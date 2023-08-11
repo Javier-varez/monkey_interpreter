@@ -1,8 +1,11 @@
 package parser
 
 import (
+	"bytes"
+	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/javier-varez/monkey_interpreter/ast"
 	"github.com/javier-varez/monkey_interpreter/lexer"
@@ -43,13 +46,57 @@ type parseError struct {
 }
 
 func (p *parseError) Error() string {
-	// TODO(ja): Incorporate context information
 	return p.errorMsg
 }
 
+func (p *parseError) errLines() []string {
+	lines := strings.Split(p.input, "\n")
+	return lines[p.span.Start.Line : p.span.End.Line+1]
+}
+
+const UNDERLINE = "\x1b[4m"
+const UNDERLINE_RESET = "\x1b[24m"
+const RED = "\x1b[31m"
+const RESET_COLOR = "\x1b[0m"
+
 func (p *parseError) ContextualError() string {
-	// Shows a contextual error based on the span
-	return p.errorMsg
+	var buffer bytes.Buffer
+
+	startLine := p.span.Start.Line
+	endLine := p.span.End.Line
+
+	for lineIdx, line := range p.errLines() {
+		if lineIdx > startLine && lineIdx < endLine {
+			buffer.WriteString(line)
+		} else {
+			if lineIdx == startLine && lineIdx == endLine {
+				firstPart := line[:p.span.Start.Column]
+				secondPart := line[p.span.Start.Column:p.span.End.Column]
+				thirdPart := line[p.span.End.Column:]
+				buffer.WriteString(firstPart)
+				buffer.WriteString(UNDERLINE)
+				buffer.WriteString(secondPart)
+				buffer.WriteString(UNDERLINE_RESET)
+				buffer.WriteString(thirdPart)
+			} else if lineIdx == startLine {
+				firstPart := line[:p.span.Start.Column]
+				secondPart := line[p.span.Start.Column:p.span.End.Column]
+				buffer.WriteString(firstPart)
+				buffer.WriteString(UNDERLINE)
+				buffer.WriteString(secondPart)
+			} else if lineIdx == endLine {
+				firstPart := line[p.span.Start.Column:p.span.End.Column]
+				secondPart := line[p.span.End.Column:]
+				buffer.WriteString(firstPart)
+				buffer.WriteString(UNDERLINE_RESET)
+				buffer.WriteString(secondPart)
+			}
+		}
+		buffer.WriteByte('\n')
+	}
+
+	buffer.WriteString(fmt.Sprintf("\t%s%s%s\n", RED, p.errorMsg, RESET_COLOR))
+	return buffer.String()
 }
 
 func (p *parseError) Span() token.Span {
@@ -200,7 +247,8 @@ func (p *Parser) parseIfExpr() ast.Expression {
 	}
 	p.nextToken()
 
-	expr.ElseToken = &p.curToken
+	elseToken := p.curToken
+	expr.ElseToken = &elseToken
 
 	if p.peekToken.Type != token.LBRACE {
 		return nil
@@ -213,7 +261,9 @@ func (p *Parser) parseIfExpr() ast.Expression {
 }
 
 func (p *Parser) parseFnLiteralExpr() ast.Expression {
-	expr := &ast.FnLiteralExpr{}
+	expr := &ast.FnLiteralExpr{
+		FnToken: p.curToken,
+	}
 
 	if p.peekToken.Type != token.LPAREN {
 		p.mkError(p.peekToken.Span, "fn literal must be followed by argument list")
@@ -332,7 +382,8 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 
 	if p.peekToken.Type == token.SEMICOLON {
 		p.nextToken()
-		stmt.SemicolonToken = p.curToken
+		token := p.curToken
+		stmt.SemicolonToken = &token
 	}
 
 	return stmt
@@ -352,7 +403,8 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 
 	if p.peekToken.Type == token.SEMICOLON {
 		p.nextToken()
-		stmt.SemicolonToken = p.curToken
+		token := p.curToken
+		stmt.SemicolonToken = &token
 	}
 
 	return stmt
@@ -370,6 +422,8 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	}
 
 	p.nextToken()
+	stmt.Rbrace = p.curToken
+
 	return stmt
 }
 
@@ -397,11 +451,13 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 }
 
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
-	stmt := &ast.ExpressionStatement{Token: p.curToken}
+	stmt := &ast.ExpressionStatement{}
 
 	stmt.Expr = p.parseExpression(LOWEST)
 	if p.peekToken.Type == token.SEMICOLON {
 		p.nextToken()
+		token := p.curToken
+		stmt.SemicolonToken = &token
 	}
 	return stmt
 }

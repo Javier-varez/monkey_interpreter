@@ -18,7 +18,7 @@ func TestString(t *testing.T) {
 				Expr: &IdentifierExpr{
 					IdentToken: token.Token{Type: token.IDENT, Literal: "anothervar"},
 				},
-				SemicolonToken: token.Token{Type: token.SEMICOLON, Literal: ";"},
+				SemicolonToken: &token.Token{Type: token.SEMICOLON, Literal: ";"},
 			},
 		},
 	}
