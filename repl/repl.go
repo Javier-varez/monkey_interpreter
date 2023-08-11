@@ -7,6 +7,7 @@ import (
 
 	"github.com/javier-varez/monkey_interpreter/evaluator"
 	"github.com/javier-varez/monkey_interpreter/lexer"
+	"github.com/javier-varez/monkey_interpreter/object"
 	"github.com/javier-varez/monkey_interpreter/parser"
 	"github.com/peterh/liner"
 )
@@ -64,7 +65,12 @@ func Start() {
 		} else {
 			result := evaluator.Eval(program)
 			if result != nil {
-				fmt.Printf("%s\n", result.Inspect())
+				if result.Type() == object.ERROR_VALUE_OBJ {
+					err := result.(*object.Error)
+					fmt.Printf("%s\n", err.ContextualError(txt))
+				} else {
+					fmt.Printf("%s\n", result.Inspect())
+				}
 			}
 		}
 	}

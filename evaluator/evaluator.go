@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/javier-varez/monkey_interpreter/ast"
@@ -8,8 +9,11 @@ import (
 	"github.com/javier-varez/monkey_interpreter/token"
 )
 
+func mkError(s token.Span, msg string) *object.Error {
+	return &object.Error{Span: s, Message: msg}
+}
+
 func evalAdd(leftObject, rightObject object.Object) object.Object {
-	// TODO(ja): Handle other types
 	left := leftObject.(*object.Integer)
 	right := rightObject.(*object.Integer)
 
@@ -19,7 +23,6 @@ func evalAdd(leftObject, rightObject object.Object) object.Object {
 }
 
 func evalSub(leftObject, rightObject object.Object) object.Object {
-	// TODO(ja): Handle other types
 	left := leftObject.(*object.Integer)
 	right := rightObject.(*object.Integer)
 
@@ -29,7 +32,6 @@ func evalSub(leftObject, rightObject object.Object) object.Object {
 }
 
 func evalMul(leftObject, rightObject object.Object) object.Object {
-	// TODO(ja): Handle other types
 	left := leftObject.(*object.Integer)
 	right := rightObject.(*object.Integer)
 
@@ -39,7 +41,6 @@ func evalMul(leftObject, rightObject object.Object) object.Object {
 }
 
 func evalDiv(leftObject, rightObject object.Object) object.Object {
-	// TODO(ja): Handle other types
 	left := leftObject.(*object.Integer)
 	right := rightObject.(*object.Integer)
 
@@ -58,11 +59,11 @@ func evalEq(leftObject, rightObject object.Object) object.Object {
 		left := leftObject.(*object.Boolean)
 		right := rightObject.(*object.Boolean)
 		result = left.Value == right.Value
+	} else {
+		panic("Unsupported operands.")
 	}
 
-	return &object.Boolean{
-		Value: result,
-	}
+	return &object.Boolean{Value: result}
 }
 
 func evalNeq(leftObject, rightObject object.Object) object.Object {
@@ -75,94 +76,144 @@ func evalNeq(leftObject, rightObject object.Object) object.Object {
 		left := leftObject.(*object.Boolean)
 		right := rightObject.(*object.Boolean)
 		result = left.Value != right.Value
+	} else {
+		panic("Unsupported operands.")
 	}
 
-	return &object.Boolean{
-		Value: result,
-	}
+	return &object.Boolean{Value: result}
 }
 
 func evalLess(leftObject, rightObject object.Object) object.Object {
-	result := false
-	if leftObject.Type() == object.INTEGER_OBJ && rightObject.Type() == object.INTEGER_OBJ {
-		left := leftObject.(*object.Integer)
-		right := rightObject.(*object.Integer)
-		result = left.Value < right.Value
-	}
+	left := leftObject.(*object.Integer)
+	right := rightObject.(*object.Integer)
+	result := left.Value < right.Value
 
-	return &object.Boolean{
-		Value: result,
-	}
+	return &object.Boolean{Value: result}
 }
 
 func evalGreater(leftObject, rightObject object.Object) object.Object {
-	result := false
-	if leftObject.Type() == object.INTEGER_OBJ && rightObject.Type() == object.INTEGER_OBJ {
-		left := leftObject.(*object.Integer)
-		right := rightObject.(*object.Integer)
-		result = left.Value > right.Value
-	}
+	left := leftObject.(*object.Integer)
+	right := rightObject.(*object.Integer)
+	result := left.Value > right.Value
 
-	return &object.Boolean{
-		Value: result,
-	}
+	return &object.Boolean{Value: result}
 }
 
-func evalInfixExpr(leftObject object.Object, operator token.Token, rightObject object.Object) object.Object {
-	switch operator.Type {
+func evalInfixExpr(expr *ast.InfixExpr) object.Object {
+	left := Eval(expr.LeftExpr)
+	if left.Type() == object.ERROR_VALUE_OBJ {
+		return left
+	}
+
+	right := Eval(expr.RightExpr)
+	if right.Type() == object.ERROR_VALUE_OBJ {
+		return right
+	}
+
+	switch expr.OperatorToken.Type {
 	case token.PLUS:
-		return evalAdd(leftObject, rightObject)
+		fallthrough
 	case token.MINUS:
-		return evalSub(leftObject, rightObject)
+		fallthrough
 	case token.ASTERISK:
-		return evalMul(leftObject, rightObject)
+		fallthrough
 	case token.SLASH:
-		return evalDiv(leftObject, rightObject)
-	case token.EQ:
-		return evalEq(leftObject, rightObject)
-	case token.NOT_EQ:
-		return evalNeq(leftObject, rightObject)
+		fallthrough
 	case token.LT:
-		return evalLess(leftObject, rightObject)
+		fallthrough
 	case token.GT:
-		return evalGreater(leftObject, rightObject)
+		if left.Type() != object.INTEGER_OBJ {
+			return mkError(expr.LeftExpr.Span(), "Expression does not evaluate to an integer object")
+		}
+
+		if right.Type() != object.INTEGER_OBJ {
+			return mkError(expr.RightExpr.Span(), "Expression does not evaluate to an integer object")
+		}
+	case token.EQ:
+		fallthrough
+	case token.NOT_EQ:
+		if left.Type() != object.INTEGER_OBJ && left.Type() != object.BOOLEAN_OBJ {
+			return mkError(expr.LeftExpr.Span(), "Expression does not evaluate to an integer or boolean object")
+		}
+
+		if right.Type() != object.INTEGER_OBJ && right.Type() != object.BOOLEAN_OBJ {
+			return mkError(expr.RightExpr.Span(), "Expression does not evaluate to an integer or boolean object")
+		}
+
+		if right.Type() != left.Type() {
+			return mkError(expr.Span(), "Left and right arguments to the infix operator do not have the same type")
+		}
 	default:
-		log.Fatalf("Unsupported infix operator: %v", operator)
+		log.Fatalf("Unsupported infix operator: %v", expr.OperatorToken)
+	}
+
+	switch expr.OperatorToken.Type {
+	case token.PLUS:
+		return evalAdd(left, right)
+	case token.MINUS:
+		return evalSub(left, right)
+	case token.ASTERISK:
+		return evalMul(left, right)
+	case token.SLASH:
+		return evalDiv(left, right)
+	case token.EQ:
+		return evalEq(left, right)
+	case token.NOT_EQ:
+		return evalNeq(left, right)
+	case token.LT:
+		return evalLess(left, right)
+	case token.GT:
+		return evalGreater(left, right)
+	default:
+		log.Fatalf("Unsupported infix operator: %v", expr.OperatorToken)
 	}
 
 	return nil
 }
 
 func evalBang(obj object.Object) object.Object {
-	// TODO(ja): Handle other types
 	boolObj := obj.(*object.Boolean)
-
 	return &object.Boolean{Value: !boolObj.Value}
 }
 
 func evalMinus(obj object.Object) object.Object {
-	// TODO(ja): Handle other types
 	intObj := obj.(*object.Integer)
-
 	return &object.Integer{Value: -intObj.Value}
 }
 
-func evalPrefixExpr(obj object.Object, operator token.Token) object.Object {
-	switch operator.Type {
-	case token.BANG:
-		return evalBang(obj)
-	case token.MINUS:
-		return evalMinus(obj)
-	default:
-		log.Fatalf("Unsupported prefix operator: %v", operator)
+func evalPrefixExpr(expr *ast.PrefixExpr) object.Object {
+	innerResult := Eval(expr.InnerExpr)
+	if innerResult.Type() == object.ERROR_VALUE_OBJ {
+		return innerResult
 	}
 
+	switch expr.OperatorToken.Type {
+	case token.BANG:
+		if innerResult.Type() != object.BOOLEAN_OBJ {
+			return mkError(expr.Span(), fmt.Sprintf("%q requires a boolean argument", token.BANG))
+		}
+		return evalBang(innerResult)
+	case token.MINUS:
+		if innerResult.Type() != object.INTEGER_OBJ {
+			return mkError(expr.Span(), fmt.Sprintf("%q requires an integer argument", token.MINUS))
+		}
+		return evalMinus(innerResult)
+	default:
+		log.Fatalf("Unsupported prefix operator: %v", expr.OperatorToken.Type)
+	}
 	return nil
 }
 
 func evalIfExpr(expr *ast.IfExpr) object.Object {
 	condition := Eval(expr.Condition)
-	// TODO(ja): Handle error gracefully
+	if condition.Type() == object.ERROR_VALUE_OBJ {
+		return condition
+	}
+
+	if condition.Type() != object.BOOLEAN_OBJ {
+		return mkError(expr.Condition.Span(), "Condition must evaluate to a boolean object")
+	}
+
 	boolCondition := condition.(*object.Boolean)
 
 	if boolCondition.Value {
@@ -181,7 +232,12 @@ func evalBlockStatement(stmt *ast.BlockStatement) object.Object {
 	for _, stmt := range stmt.Statements {
 		result = Eval(stmt)
 
-		if returnObj, ok := result.(*object.Return); ok {
+		if result.Type() == object.ERROR_VALUE_OBJ {
+			return result
+		}
+
+		if result.Type() == object.RETURN_VALUE_OBJ {
+			returnObj := result.(*object.Return)
 			return returnObj
 		}
 	}
@@ -193,11 +249,28 @@ func evalProgram(program *ast.Program) object.Object {
 	for _, statement := range program.Statements {
 		result = Eval(statement)
 
-		if returnObj, ok := result.(*object.Return); ok {
+		if result.Type() == object.ERROR_VALUE_OBJ {
+			return result
+		}
+
+		if result.Type() == object.RETURN_VALUE_OBJ {
+			returnObj := result.(*object.Return)
 			return returnObj.Value
 		}
 	}
 	return result
+}
+
+func evalReturnStatement(stmt *ast.ReturnStatement) object.Object {
+	var result object.Object = &object.Null{}
+	if stmt.Expr != nil {
+		result = Eval(stmt.Expr)
+		if result.Type() == object.ERROR_VALUE_OBJ {
+			return result
+		}
+	}
+
+	return &object.Return{Value: result}
 }
 
 func Eval(node ast.Node) object.Object {
@@ -215,10 +288,10 @@ func Eval(node ast.Node) object.Object {
 		return &object.Boolean{Value: node.Value}
 
 	case *ast.PrefixExpr:
-		return evalPrefixExpr(Eval(node.InnerExpr), node.OperatorToken)
+		return evalPrefixExpr(node)
 
 	case *ast.InfixExpr:
-		return evalInfixExpr(Eval(node.LeftExpr), node.OperatorToken, Eval(node.RightExpr))
+		return evalInfixExpr(node)
 
 	case *ast.IfExpr:
 		return evalIfExpr(node)
@@ -227,11 +300,7 @@ func Eval(node ast.Node) object.Object {
 		return evalBlockStatement(node)
 
 	case *ast.ReturnStatement:
-		var result object.Object = &object.Null{}
-		if node.Expr != nil {
-			result = Eval(node.Expr)
-		}
-		return &object.Return{Value: result}
+		return evalReturnStatement(node)
 
 	default:
 		log.Fatalf("Unimplemented evaluation of node type: %T\n", node)

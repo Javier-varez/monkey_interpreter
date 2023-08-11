@@ -157,6 +157,10 @@ func TestEvalInfixBoolOperators(t *testing.T) {
 		{"123 == 124", false},
 		{"123 != 123", false},
 		{"123 != 124", true},
+		{"true == true", true},
+		{"true == false", false},
+		{"true != true", false},
+		{"true != false", true},
 		{"12 < 123", true},
 		{"12 > 123", false},
 	}
