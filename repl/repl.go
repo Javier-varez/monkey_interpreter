@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/javier-varez/monkey_interpreter/evaluator"
 	"github.com/javier-varez/monkey_interpreter/lexer"
 	"github.com/javier-varez/monkey_interpreter/parser"
 	"github.com/peterh/liner"
-	"gopkg.in/yaml.v2"
 )
 
 const PROMPT = ">> "
@@ -62,16 +62,10 @@ func Start() {
 				fmt.Println(diag.ContextualError())
 			}
 		} else {
-			fmt.Println("Successful ast parsing")
-			fmt.Println(program)
-
-			marshalled, err := yaml.Marshal(program)
-			if err != nil {
-				fmt.Println("Error marshalling program")
-				continue
+			result := evaluator.Eval(program)
+			if result != nil {
+				fmt.Printf("%s\n", result.Inspect())
 			}
-
-			fmt.Println(string(marshalled))
 		}
 	}
 }
