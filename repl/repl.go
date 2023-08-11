@@ -45,6 +45,8 @@ func (p *PromptReader) Prompt() (string, error) {
 func Start() {
 	linerState := PromptReader{linerState: liner.NewLiner()}
 
+	env := object.NewEnvironment()
+
 	for {
 		txt, err := linerState.Prompt()
 		if err != nil {
@@ -63,7 +65,7 @@ func Start() {
 				fmt.Println(diag.ContextualError())
 			}
 		} else {
-			result := evaluator.Eval(program)
+			result := evaluator.Eval(program, env)
 			if result != nil {
 				if result.Type() == object.ERROR_VALUE_OBJ {
 					err := result.(*object.Error)

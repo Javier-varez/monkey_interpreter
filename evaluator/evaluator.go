@@ -99,13 +99,13 @@ func evalGreater(leftObject, rightObject object.Object) object.Object {
 	return &object.Boolean{Value: result}
 }
 
-func evalInfixExpr(expr *ast.InfixExpr) object.Object {
-	left := Eval(expr.LeftExpr)
+func evalInfixExpr(expr *ast.InfixExpr, env *object.Environment) object.Object {
+	left := Eval(expr.LeftExpr, env)
 	if left.Type() == object.ERROR_VALUE_OBJ {
 		return left
 	}
 
-	right := Eval(expr.RightExpr)
+	right := Eval(expr.RightExpr, env)
 	if right.Type() == object.ERROR_VALUE_OBJ {
 		return right
 	}
@@ -181,8 +181,8 @@ func evalMinus(obj object.Object) object.Object {
 	return &object.Integer{Value: -intObj.Value}
 }
 
-func evalPrefixExpr(expr *ast.PrefixExpr) object.Object {
-	innerResult := Eval(expr.InnerExpr)
+func evalPrefixExpr(expr *ast.PrefixExpr, env *object.Environment) object.Object {
+	innerResult := Eval(expr.InnerExpr, env)
 	if innerResult.Type() == object.ERROR_VALUE_OBJ {
 		return innerResult
 	}
@@ -204,8 +204,8 @@ func evalPrefixExpr(expr *ast.PrefixExpr) object.Object {
 	return nil
 }
 
-func evalIfExpr(expr *ast.IfExpr) object.Object {
-	condition := Eval(expr.Condition)
+func evalIfExpr(expr *ast.IfExpr, env *object.Environment) object.Object {
+	condition := Eval(expr.Condition, env)
 	if condition.Type() == object.ERROR_VALUE_OBJ {
 		return condition
 	}
@@ -217,20 +217,20 @@ func evalIfExpr(expr *ast.IfExpr) object.Object {
 	boolCondition := condition.(*object.Boolean)
 
 	if boolCondition.Value {
-		return Eval(expr.Consequence)
+		return Eval(expr.Consequence, env)
 	}
 
 	if expr.Alternative != nil {
-		return Eval(expr.Alternative)
+		return Eval(expr.Alternative, env)
 	}
 
 	return &object.Null{}
 }
 
-func evalBlockStatement(stmt *ast.BlockStatement) object.Object {
+func evalBlockStatement(stmt *ast.BlockStatement, env *object.Environment) object.Object {
 	var result object.Object
 	for _, stmt := range stmt.Statements {
-		result = Eval(stmt)
+		result = Eval(stmt, env)
 
 		if result.Type() == object.ERROR_VALUE_OBJ {
 			return result
@@ -244,10 +244,10 @@ func evalBlockStatement(stmt *ast.BlockStatement) object.Object {
 	return result
 }
 
-func evalProgram(program *ast.Program) object.Object {
+func evalProgram(program *ast.Program, env *object.Environment) object.Object {
 	var result object.Object
 	for _, statement := range program.Statements {
-		result = Eval(statement)
+		result = Eval(statement, env)
 
 		if result.Type() == object.ERROR_VALUE_OBJ {
 			return result
@@ -261,10 +261,10 @@ func evalProgram(program *ast.Program) object.Object {
 	return result
 }
 
-func evalReturnStatement(stmt *ast.ReturnStatement) object.Object {
+func evalReturnStatement(stmt *ast.ReturnStatement, env *object.Environment) object.Object {
 	var result object.Object = &object.Null{}
 	if stmt.Expr != nil {
-		result = Eval(stmt.Expr)
+		result = Eval(stmt.Expr, env)
 		if result.Type() == object.ERROR_VALUE_OBJ {
 			return result
 		}
@@ -273,13 +273,29 @@ func evalReturnStatement(stmt *ast.ReturnStatement) object.Object {
 	return &object.Return{Value: result}
 }
 
-func Eval(node ast.Node) object.Object {
+func evalLetStatement(stmt *ast.LetStatement, env *object.Environment) object.Object {
+	obj := Eval(stmt.Expr, env)
+	if obj.Type() == object.ERROR_VALUE_OBJ {
+		return obj
+	}
+
+	return env.Set(stmt.IdentExpr.(*ast.IdentifierExpr).IdentToken.Literal, obj)
+}
+
+func evalIdentifierExpression(expr *ast.IdentifierExpr, env *object.Environment) object.Object {
+	if obj, ok := env.Get(expr.IdentToken.Literal); ok {
+		return obj
+	}
+	return mkError(expr.Span(), "Identifier not found")
+}
+
+func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
 	case *ast.Program:
-		return evalProgram(node)
+		return evalProgram(node, env)
 
 	case *ast.ExpressionStatement:
-		return Eval(node.Expr)
+		return Eval(node.Expr, env)
 
 	case *ast.IntegerLiteralExpr:
 		return &object.Integer{Value: node.Value}
@@ -288,19 +304,25 @@ func Eval(node ast.Node) object.Object {
 		return &object.Boolean{Value: node.Value}
 
 	case *ast.PrefixExpr:
-		return evalPrefixExpr(node)
+		return evalPrefixExpr(node, env)
 
 	case *ast.InfixExpr:
-		return evalInfixExpr(node)
+		return evalInfixExpr(node, env)
 
 	case *ast.IfExpr:
-		return evalIfExpr(node)
+		return evalIfExpr(node, env)
 
 	case *ast.BlockStatement:
-		return evalBlockStatement(node)
+		return evalBlockStatement(node, env)
 
 	case *ast.ReturnStatement:
-		return evalReturnStatement(node)
+		return evalReturnStatement(node, env)
+
+	case *ast.LetStatement:
+		return evalLetStatement(node, env)
+
+	case *ast.IdentifierExpr:
+		return evalIdentifierExpression(node, env)
 
 	default:
 		log.Fatalf("Unimplemented evaluation of node type: %T\n", node)

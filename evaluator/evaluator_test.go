@@ -49,6 +49,8 @@ func testNullObject(t *testing.T, obj object.Object) bool {
 
 func testObject(t *testing.T, obj object.Object, inner interface{}) bool {
 	switch inner := inner.(type) {
+	case int:
+		return testIntegerObject(t, obj, int64(inner))
 	case int64:
 		return testIntegerObject(t, obj, inner)
 	case bool:
@@ -58,8 +60,6 @@ func testObject(t *testing.T, obj object.Object, inner interface{}) bool {
 	default:
 		panic("Unhandled type in testObject")
 	}
-
-	return false
 }
 
 func testErrorObject(t *testing.T, obj object.Object, span token.Span, msg string) bool {
@@ -87,7 +87,8 @@ func testEval(input string) object.Object {
 	p := parser.New(l)
 
 	program := p.ParseProgram()
-	return Eval(program)
+	env := object.NewEnvironment()
+	return Eval(program, env)
 }
 
 func TestEvalIntegerExpression(t *testing.T) {
@@ -261,10 +262,27 @@ func TestEvalRuntimeErrors(t *testing.T) {
 		{"if (!10) {}", mkSpan(4, 7), "\"!\" requires a boolean argument"},
 		{"-true", mkSpan(0, 5), "\"-\" requires an integer argument"},
 		{"if (10) {}", mkSpan(4, 6), "Condition must evaluate to a boolean object"},
+		{"foobar", mkSpan(0, 6), "Identifier not found"},
 	}
 
 	for _, tt := range tests {
 		result := testEval(tt.input)
 		testErrorObject(t, result, tt.errorSpan, tt.errorMsg)
+	}
+}
+
+func TestEvalLetStatements(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"let a = 5; a", 5},
+		{"let b = true; b", true},
+		{"let a = 100; let b = 200; let c = 323; let d = a * b; d + c", 20323},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
 	}
 }
