@@ -26,6 +26,13 @@ var builtins map[string]object.BuiltinFunction = map[string]object.BuiltinFuncti
 
 		return mkError(span, "\"len\" builtin takes a single string argument")
 	},
+	"puts": func(span token.Span, objects ...object.Object) object.Object {
+		for _, object := range objects {
+			fmt.Print(object.Inspect())
+		}
+		fmt.Println()
+		return &object.Null{}
+	},
 }
 
 func evalAdd(leftObject, rightObject object.Object) object.Object {

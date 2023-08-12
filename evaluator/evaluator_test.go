@@ -294,6 +294,8 @@ func TestEvalRuntimeErrors(t *testing.T) {
 		{"-true", mkSpan(0, 5), "\"-\" requires an integer argument"},
 		{"if (10) {}", mkSpan(4, 6), "Condition must evaluate to a boolean object"},
 		{"foobar", mkSpan(0, 6), "Identifier not found"},
+		{"len(3)", mkSpan(0, 6), "\"len\" builtin takes a single string argument"},
+		{`len("", "")`, mkSpan(0, 11), "\"len\" builtin takes a single string argument"},
 	}
 
 	for _, tt := range tests {
@@ -401,6 +403,22 @@ func TestStringLiterals(t *testing.T) {
 		expected interface{}
 	}{
 		{`let a = "Hello world!"; a`, "Hello world!"},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
+	}
+}
+
+func TestLenBuiltin(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`let a = "Hello world!"; len(a)`, 12},
+		{`let a = "Hello worl"; len(a)`, 10},
+		{`let a = "Hello wo"; let b = len; b(a)`, 8},
 	}
 
 	for _, tt := range tests {
