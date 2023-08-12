@@ -419,6 +419,21 @@ func testBoolLiteral(t *testing.T, exp ast.Expression, expected bool) bool {
 	return true
 }
 
+func testStringLiteralExpression(t *testing.T, exp ast.Expression, expected string) bool {
+	strLiteralExpr, ok := exp.(*ast.StringLiteralExpr)
+	if !ok {
+		t.Errorf("Expression is not a string literal: %T", exp)
+		return false
+	}
+
+	if strLiteralExpr.Value != expected {
+		t.Errorf("String literal does not match. Expected %v, got %v", expected, strLiteralExpr.Value)
+		return false
+	}
+
+	return true
+}
+
 func testLiteralExpression(t *testing.T, exp ast.Expression, expected interface{}) bool {
 	switch v := expected.(type) {
 	case int:
@@ -730,5 +745,27 @@ func TestEmptyCallExpression(t *testing.T) {
 
 	if len(callExpr.Args) != 0 {
 		t.Fatalf("Unexpected number of arguments in callExpr.Args: %d", len(callExpr.Args))
+	}
+}
+
+func TestStringLiteralExpression(t *testing.T) {
+	input := `"Hello world!"`
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	checkDiagnostics(t, program)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	if !testStringLiteralExpression(t, stmt.Expr, "Hello world!") {
+		return
 	}
 }

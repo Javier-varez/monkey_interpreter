@@ -40,6 +40,7 @@ if (5 < 10) {
 
 10 == 10;
 10 != 9;
+"test string that also has 123 numbers and -;/\\ special chars +=-<>";
 `
 
 	tests := []token.Token{
@@ -116,7 +117,9 @@ if (5 < 10) {
 		{Type: token.NOT_EQ, Literal: "!=", Span: newSpan(19, 3, 2)},
 		{Type: token.INT, Literal: "9", Span: newSpan(19, 6, 1)},
 		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(19, 7, 1)},
-		{Type: token.EOF, Literal: "", Span: newSpan(20, 0, 0)},
+		{Type: token.STRING, Literal: `"test string that also has 123 numbers and -;/\\ special chars +=-<>"`, Span: newSpan(20, 0, 69)},
+		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(20, 69, 1)},
+		{Type: token.EOF, Literal: ``, Span: newSpan(21, 0, 0)},
 	}
 
 	l := New(input)

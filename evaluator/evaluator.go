@@ -14,12 +14,17 @@ func mkError(s token.Span, msg string) *object.Error {
 }
 
 func evalAdd(leftObject, rightObject object.Object) object.Object {
-	left := leftObject.(*object.Integer)
-	right := rightObject.(*object.Integer)
-
-	return &object.Integer{
-		Value: left.Value + right.Value,
+	if leftObject.Type() == object.INTEGER_OBJ && rightObject.Type() == object.INTEGER_OBJ {
+		left := leftObject.(*object.Integer)
+		right := rightObject.(*object.Integer)
+		return &object.Integer{Value: left.Value + right.Value}
+	} else if leftObject.Type() == object.STRING_OBJ && rightObject.Type() == object.STRING_OBJ {
+		left := leftObject.(*object.String)
+		right := rightObject.(*object.String)
+		return &object.String{Value: left.Value + right.Value}
 	}
+
+	panic("Invalid types for call to evalAdd")
 }
 
 func evalSub(leftObject, rightObject object.Object) object.Object {
@@ -59,6 +64,10 @@ func evalEq(leftObject, rightObject object.Object) object.Object {
 		left := leftObject.(*object.Boolean)
 		right := rightObject.(*object.Boolean)
 		result = left.Value == right.Value
+	} else if leftObject.Type() == object.STRING_OBJ && rightObject.Type() == object.STRING_OBJ {
+		left := leftObject.(*object.String)
+		right := rightObject.(*object.String)
+		result = left.Value == right.Value
 	} else {
 		panic("Unsupported operands.")
 	}
@@ -75,6 +84,10 @@ func evalNeq(leftObject, rightObject object.Object) object.Object {
 	} else if leftObject.Type() == object.BOOLEAN_OBJ && rightObject.Type() == object.BOOLEAN_OBJ {
 		left := leftObject.(*object.Boolean)
 		right := rightObject.(*object.Boolean)
+		result = left.Value != right.Value
+	} else if leftObject.Type() == object.STRING_OBJ && rightObject.Type() == object.STRING_OBJ {
+		left := leftObject.(*object.String)
+		right := rightObject.(*object.String)
 		result = left.Value != right.Value
 	} else {
 		panic("Unsupported operands.")
@@ -112,7 +125,17 @@ func evalInfixExpr(expr *ast.InfixExpr, env *object.Environment) object.Object {
 
 	switch expr.OperatorToken.Type {
 	case token.PLUS:
-		fallthrough
+		if left.Type() != object.INTEGER_OBJ && left.Type() != object.STRING_OBJ {
+			return mkError(expr.LeftExpr.Span(), "Expression does not evaluate to an integer or string object")
+		}
+
+		if right.Type() != object.INTEGER_OBJ && right.Type() != object.STRING_OBJ {
+			return mkError(expr.RightExpr.Span(), "Expression does not evaluate to an integer or string object")
+		}
+
+		if right.Type() != left.Type() {
+			return mkError(expr.Span(), "Left and right arguments to the infix operator do not have the same type")
+		}
 	case token.MINUS:
 		fallthrough
 	case token.ASTERISK:
@@ -132,12 +155,12 @@ func evalInfixExpr(expr *ast.InfixExpr, env *object.Environment) object.Object {
 	case token.EQ:
 		fallthrough
 	case token.NOT_EQ:
-		if left.Type() != object.INTEGER_OBJ && left.Type() != object.BOOLEAN_OBJ {
-			return mkError(expr.LeftExpr.Span(), "Expression does not evaluate to an integer or boolean object")
+		if left.Type() != object.INTEGER_OBJ && left.Type() != object.BOOLEAN_OBJ && left.Type() != object.STRING_OBJ {
+			return mkError(expr.LeftExpr.Span(), "Expression does not evaluate to an integer, boolean or string object")
 		}
 
-		if right.Type() != object.INTEGER_OBJ && right.Type() != object.BOOLEAN_OBJ {
-			return mkError(expr.RightExpr.Span(), "Expression does not evaluate to an integer or boolean object")
+		if right.Type() != object.INTEGER_OBJ && right.Type() != object.BOOLEAN_OBJ && right.Type() != object.STRING_OBJ {
+			return mkError(expr.RightExpr.Span(), "Expression does not evaluate to an integer, boolean or string object")
 		}
 
 		if right.Type() != left.Type() {
@@ -340,6 +363,7 @@ func evalCallExpr(expr *ast.CallExpr, env *object.Environment) object.Object {
 }
 
 func Eval(node ast.Node, env *object.Environment) object.Object {
+	fmt.Printf("Evaluating node of type %T\n", node)
 	switch node := node.(type) {
 	case *ast.Program:
 		return evalProgram(node, env)
@@ -379,6 +403,9 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 	case *ast.CallExpr:
 		return evalCallExpr(node, env)
+
+	case *ast.StringLiteralExpr:
+		return &object.String{Value: node.Value}
 
 	default:
 		log.Fatalf("Unimplemented evaluation of node type: %T\n", node)

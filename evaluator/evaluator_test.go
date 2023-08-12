@@ -38,6 +38,20 @@ func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 	return true
 }
 
+func testStringObject(t *testing.T, obj object.Object, expected string) bool {
+	stringRes, ok := obj.(*object.String)
+	if !ok {
+		t.Errorf("Result is not a string object: %v", obj)
+		return false
+	}
+
+	if stringRes.Value != expected {
+		t.Errorf("Unexpected value: expected %q, got %q", expected, stringRes.Value)
+		return false
+	}
+	return true
+}
+
 func testNullObject(t *testing.T, obj object.Object) bool {
 	_, ok := obj.(*object.Null)
 	if !ok {
@@ -56,6 +70,8 @@ func testObject(t *testing.T, obj object.Object, inner interface{}) bool {
 		return testIntegerObject(t, obj, inner)
 	case bool:
 		return testBooleanObject(t, obj, inner)
+	case string:
+		return testStringObject(t, obj, inner)
 	case nil:
 		return testNullObject(t, obj)
 	default:
@@ -157,17 +173,18 @@ func TestEvalMinuxOperator(t *testing.T) {
 func TestEvalInfixOperators(t *testing.T) {
 	tests := []struct {
 		input  string
-		output int64
+		output interface{}
 	}{
 		{"123 + 123", 246},
 		{"12 * 2", 24},
 		{"16 / 2", 8},
 		{"16 - 2", 14},
+		{`"Hello " + "world!"`, "Hello world!"},
 	}
 
 	for _, tt := range tests {
 		result := testEval(tt.input)
-		testIntegerObject(t, result, tt.output)
+		testObject(t, result, tt.output)
 	}
 }
 
@@ -184,6 +201,10 @@ func TestEvalInfixBoolOperators(t *testing.T) {
 		{"true == false", false},
 		{"true != true", false},
 		{"true != false", true},
+		// {`"Hi!" == "Hi!"`, true},
+		// {`"Hi!" == "Hi!a"`, false},
+		// {`"Hi!" != "Hi!"`, false},
+		// {`"Hi!" != "Hi!a"`, true},
 		{"12 < 123", true},
 		{"12 > 123", false},
 	}
@@ -258,8 +279,12 @@ func TestEvalRuntimeErrors(t *testing.T) {
 		errorSpan token.Span
 		errorMsg  string
 	}{
-		{"if (10 + true) {}", mkSpan(9, 13), "Expression does not evaluate to an integer object"},
-		{"if (true + 10) {}", mkSpan(4, 8), "Expression does not evaluate to an integer object"},
+		{"if (10 + true) {}", mkSpan(9, 13), "Expression does not evaluate to an integer or string object"},
+		{"if (true + 10) {}", mkSpan(4, 8), "Expression does not evaluate to an integer or string object"},
+		{`let a = "str" + 10`, mkSpan(8, 18), "Left and right arguments to the infix operator do not have the same type"},
+		{`let a = 10 + "str"`, mkSpan(8, 18), "Left and right arguments to the infix operator do not have the same type"},
+		{`let a = 10 == "str"`, mkSpan(8, 19), "Left and right arguments to the infix operator do not have the same type"},
+		{`let a = "str" == 10`, mkSpan(8, 19), "Left and right arguments to the infix operator do not have the same type"},
 		{"if (!10) {}", mkSpan(4, 7), "\"!\" requires a boolean argument"},
 		{"-true", mkSpan(0, 5), "\"-\" requires an integer argument"},
 		{"if (10) {}", mkSpan(4, 6), "Condition must evaluate to a boolean object"},
@@ -357,6 +382,20 @@ func TestClosures(t *testing.T) {
 	}{
 		{"let makeAddN = fn(x) { fn(y) { x + y } }; let addTwo = makeAddN(2); addTwo(123)", 125},
 		{"let makeAddN = fn(x) { fn(y) { x + y } }; let addTwo = makeAddN(2); let addThree = makeAddN(3); addThree(123)", 126},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
+	}
+}
+
+func TestStringLiterals(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`let a = "Hello world!"; a`, "Hello world!"},
 	}
 
 	for _, tt := range tests {

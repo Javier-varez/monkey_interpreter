@@ -14,6 +14,7 @@ type ObjectType string
 const (
 	INTEGER_OBJ      = "INTEGER"
 	BOOLEAN_OBJ      = "BOOLEAN"
+	STRING_OBJ       = "STRING"
 	NULL_OBJ         = "NULL"
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	ERROR_VALUE_OBJ  = "ERROR_VALUE"
@@ -49,13 +50,25 @@ func (i *Boolean) Inspect() string {
 	return fmt.Sprintf("%t", i.Value)
 }
 
+type String struct {
+	Value string
+}
+
+func (s *String) Type() ObjectType {
+	return STRING_OBJ
+}
+
+func (s *String) Inspect() string {
+	return fmt.Sprintf("%s", s.Value)
+}
+
 type Null struct{}
 
-func (i *Null) Type() ObjectType {
+func (n *Null) Type() ObjectType {
 	return NULL_OBJ
 }
 
-func (i *Null) Inspect() string {
+func (n *Null) Inspect() string {
 	return "null"
 }
 
@@ -63,12 +76,12 @@ type Return struct {
 	Value Object
 }
 
-func (i *Return) Type() ObjectType {
+func (r *Return) Type() ObjectType {
 	return RETURN_VALUE_OBJ
 }
 
-func (i *Return) Inspect() string {
-	return i.Value.Inspect()
+func (r *Return) Inspect() string {
+	return r.Value.Inspect()
 }
 
 type Error struct {
@@ -76,12 +89,12 @@ type Error struct {
 	Span    token.Span
 }
 
-func (i *Error) Type() ObjectType {
+func (e *Error) Type() ObjectType {
 	return ERROR_VALUE_OBJ
 }
 
-func (i *Error) Inspect() string {
-	return i.Message
+func (e *Error) Inspect() string {
+	return e.Message
 }
 
 const UNDERLINE = "\x1b[4m"

@@ -347,3 +347,18 @@ func (expr *CallExpr) String() string {
 
 	return out.String()
 }
+
+type StringLiteralExpr struct {
+	StringLitToken token.Token
+	Value          string
+}
+
+func (expr *StringLiteralExpr) expressionNode() {}
+
+func (expr *StringLiteralExpr) Span() token.Span {
+	return expr.StringLitToken.Span
+}
+
+func (expr *StringLiteralExpr) String() string {
+	return expr.StringLitToken.Literal
+}

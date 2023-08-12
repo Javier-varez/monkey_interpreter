@@ -97,6 +97,10 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.GT, l.ch, l.currentLine, l.position-l.lineByteOffset)
 	case '<':
 		tok = newToken(token.LT, l.ch, l.currentLine, l.position-l.lineByteOffset)
+	case '"':
+		tok.Literal, tok.Span = l.readString()
+		tok.Type = token.STRING
+		return tok
 	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF
@@ -120,7 +124,6 @@ func (l *Lexer) NextToken() token.Token {
 				Start: token.Location{Line: l.currentLine, Column: l.position - l.lineByteOffset},
 				End:   token.Location{Line: l.currentLine, Column: l.readPosition - l.lineByteOffset},
 			}
-
 		}
 	}
 
@@ -146,6 +149,22 @@ func (l *Lexer) readNumber() (string, token.Span) {
 	for isDigit(l.ch) {
 		l.readChar()
 	}
+	return l.Input[startPos:l.position], token.Span{
+		Start: token.Location{Line: line, Column: startPos - l.lineByteOffset},
+		End:   token.Location{Line: line, Column: l.position - l.lineByteOffset},
+	}
+}
+
+func (l *Lexer) readString() (string, token.Span) {
+	line := l.currentLine
+	startPos := l.position
+	// Skip the initial "
+	l.readChar()
+	for l.ch != '"' {
+		l.readChar()
+	}
+	// Skip the last "
+	l.readChar()
 	return l.Input[startPos:l.position], token.Span{
 		Start: token.Location{Line: line, Column: startPos - l.lineByteOffset},
 		End:   token.Location{Line: line, Column: l.position - l.lineByteOffset},
