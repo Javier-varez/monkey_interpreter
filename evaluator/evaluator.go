@@ -13,6 +13,21 @@ func mkError(s token.Span, msg string) *object.Error {
 	return &object.Error{Span: s, Message: msg}
 }
 
+var builtins map[string]object.BuiltinFunction = map[string]object.BuiltinFunction{
+	"len": func(span token.Span, objects ...object.Object) object.Object {
+		if len(objects) != 1 {
+			return mkError(span, "\"len\" builtin takes a single string argument")
+		}
+
+		strObj, ok := objects[0].(*object.String)
+		if ok {
+			return &object.Integer{Value: int64(len(strObj.Value))}
+		}
+
+		return mkError(span, "\"len\" builtin takes a single string argument")
+	},
+}
+
 func evalAdd(leftObject, rightObject object.Object) object.Object {
 	if leftObject.Type() == object.INTEGER_OBJ && rightObject.Type() == object.INTEGER_OBJ {
 		left := leftObject.(*object.Integer)
@@ -309,6 +324,12 @@ func evalIdentifierExpr(expr *ast.IdentifierExpr, env *object.Environment) objec
 	if obj, ok := env.Get(expr.IdentToken.Literal); ok {
 		return obj
 	}
+
+	// Try builtin identifiers
+	if builtin, ok := builtins[expr.IdentToken.Literal]; ok {
+		return &object.Builtin{Function: builtin}
+	}
+
 	return mkError(expr.Span(), "Identifier not found")
 }
 
@@ -320,18 +341,21 @@ func evalFnLiteralExpr(expr *ast.FnLiteralExpr, env *object.Environment) object.
 	}
 }
 
-func evalCallExpr(expr *ast.CallExpr, env *object.Environment) object.Object {
-	fn := Eval(expr.CallableExpr, env)
-	if fn.Type() == object.ERROR_VALUE_OBJ {
-		return fn
+func evalCallBuiltin(builtin *object.Builtin, expr *ast.CallExpr, env *object.Environment) object.Object {
+	// Eval args
+	var args []object.Object
+	for _, arg := range expr.Args {
+		res := Eval(arg, env)
+		if res.Type() == object.ERROR_VALUE_OBJ {
+			return res
+		}
+		args = append(args, res)
 	}
 
-	if fn.Type() != object.FUNCTION_OBJ {
-		return mkError(expr.CallableExpr.Span(), "Call expression must have a callable type (function literal or identifier bounded to a function)")
-	}
+	return builtin.Function(expr.Span(), args...)
+}
 
-	fnObj := fn.(*object.Function)
-
+func evalCallFnObject(fnObj *object.Function, expr *ast.CallExpr, env *object.Environment) object.Object {
 	if len(fnObj.Args) != len(expr.Args) {
 		return mkError(expr.Span(), fmt.Sprintf("Callable takes %d arguments, but %d were supplied", len(fnObj.Args), len(expr.Args)))
 	}
@@ -360,6 +384,25 @@ func evalCallExpr(expr *ast.CallExpr, env *object.Environment) object.Object {
 		result = returnObject.Value
 	}
 	return result
+}
+
+func evalCallExpr(expr *ast.CallExpr, env *object.Environment) object.Object {
+	fn := Eval(expr.CallableExpr, env)
+	if fn.Type() == object.ERROR_VALUE_OBJ {
+		return fn
+	}
+
+	if fn.Type() == object.BUILTIN_OBJ {
+		builtinObj := fn.(*object.Builtin)
+		return evalCallBuiltin(builtinObj, expr, env)
+	}
+
+	if fn.Type() == object.FUNCTION_OBJ {
+		fnObj := fn.(*object.Function)
+		return evalCallFnObject(fnObj, expr, env)
+	}
+
+	return mkError(expr.CallableExpr.Span(), "Call expression must have a callable type (function literal or identifier bounded to a function)")
 }
 
 func Eval(node ast.Node, env *object.Environment) object.Object {
