@@ -132,7 +132,11 @@ if (5 < 10) {
 		if tok.Type != tt.Type {
 			t.Fatalf("tests[%d] - tokentype wrong. expected=%v, got=%v", i, tt, tok)
 		}
-		if tok.Span != tt.Span {
+		if tok.Span.Start != tt.Span.Start {
+			t.Fatalf("tests[%d] - tokenspan wrong. expected=%v, got=%v", i, tt, tok)
+		}
+
+		if tok.Span.End != tt.Span.End {
 			t.Fatalf("tests[%d] - tokenspan wrong. expected=%v, got=%v", i, tt, tok)
 		}
 	}

@@ -69,7 +69,7 @@ func Start() {
 			if result != nil {
 				if result.Type() == object.ERROR_VALUE_OBJ {
 					err := result.(*object.Error)
-					fmt.Printf("%s\n", err.ContextualError(txt))
+					fmt.Printf("%s\n", err.ContextualError())
 				} else {
 					fmt.Printf("%s\n", result.Inspect())
 				}

@@ -86,7 +86,12 @@ func testErrorObject(t *testing.T, obj object.Object, span token.Span, msg strin
 		return false
 	}
 
-	if errorObj.Span != span {
+	if errorObj.Span.Start != span.Start {
+		t.Errorf("Unexpected span value: expected %v, got %v", span, errorObj.Span)
+		return false
+	}
+
+	if errorObj.Span.End != span.End {
 		t.Errorf("Unexpected span value: expected %v, got %v", span, errorObj.Span)
 		return false
 	}

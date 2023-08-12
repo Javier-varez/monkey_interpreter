@@ -8,11 +8,16 @@ type Location struct {
 }
 
 type Span struct {
+	Text       *string
 	Start, End Location
 }
 
 func (first Span) Join(second Span) Span {
+	if first.Text != second.Text {
+		panic("Attempted to join spans from two different inputs")
+	}
 	return Span{
+		Text:  first.Text,
 		Start: first.Start,
 		End:   second.End,
 	}

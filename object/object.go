@@ -107,9 +107,10 @@ func (e *Error) errLines(input string) []string {
 	return lines[e.Span.Start.Line : e.Span.End.Line+1]
 }
 
-func (e *Error) ContextualError(input string) string {
+func (e *Error) ContextualError() string {
 	var buffer bytes.Buffer
 
+	input := *e.Span.Text
 	startLine := e.Span.Start.Line
 	endLine := e.Span.End.Line
 

@@ -363,7 +363,6 @@ func evalCallExpr(expr *ast.CallExpr, env *object.Environment) object.Object {
 }
 
 func Eval(node ast.Node, env *object.Environment) object.Object {
-	fmt.Printf("Evaluating node of type %T\n", node)
 	switch node := node.(type) {
 	case *ast.Program:
 		return evalProgram(node, env)

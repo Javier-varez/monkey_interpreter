@@ -40,7 +40,6 @@ type prefixParseFn func() ast.Expression
 type infixParseFn func(ast.Expression) ast.Expression
 
 type parseError struct {
-	input    string
 	span     token.Span
 	errorMsg string
 }
@@ -50,7 +49,7 @@ func (p *parseError) Error() string {
 }
 
 func (p *parseError) errLines() []string {
-	lines := strings.Split(p.input, "\n")
+	lines := strings.Split(*p.span.Text, "\n")
 	return lines[p.span.Start.Line : p.span.End.Line+1]
 }
 
@@ -105,7 +104,6 @@ func (p *parseError) Span() token.Span {
 
 func (p *Parser) mkError(s token.Span, msg string) {
 	p.errors = append(p.errors, &parseError{
-		input:    p.l.Input,
 		span:     s,
 		errorMsg: msg,
 	})
