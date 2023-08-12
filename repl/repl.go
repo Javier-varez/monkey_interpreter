@@ -3,7 +3,8 @@ package repl
 import (
 	"bytes"
 	"fmt"
-	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/javier-varez/monkey_interpreter/evaluator"
 	"github.com/javier-varez/monkey_interpreter/lexer"
@@ -42,15 +43,54 @@ func (p *PromptReader) Prompt() (string, error) {
 	return entry, nil
 }
 
+func (p *PromptReader) SaveHistoryFile() {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	monkeyFilePath := filepath.Join(pwd, ".monkey")
+	monkeyFile, err := os.Create(monkeyFilePath)
+	if err != nil {
+		return
+	}
+
+	p.linerState.WriteHistory(monkeyFile)
+}
+
+func newPromptReader() PromptReader {
+	s := liner.NewLiner()
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		return PromptReader{linerState: s}
+	}
+
+	monkeyFilePath := filepath.Join(pwd, ".monkey")
+	stat, err := os.Stat(monkeyFilePath)
+	if err != nil || stat.IsDir() {
+		return PromptReader{linerState: s}
+	}
+
+	monkeyFile, err := os.Open(monkeyFilePath)
+	if err != nil {
+		return PromptReader{linerState: s}
+	}
+
+	s.ReadHistory(monkeyFile)
+	return PromptReader{linerState: s}
+}
+
 func Start() {
-	linerState := PromptReader{linerState: liner.NewLiner()}
+	linerState := newPromptReader()
+	defer linerState.SaveHistoryFile()
 
 	env := object.NewEnvironment()
 
 	for {
 		txt, err := linerState.Prompt()
 		if err != nil {
-			log.Fatalf("Error from liner: %v", err)
+			fmt.Printf("Error from liner: %v", err)
 			return
 		}
 
