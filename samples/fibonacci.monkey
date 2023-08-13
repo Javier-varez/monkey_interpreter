@@ -11,4 +11,4 @@ let fib = wrap(fn(self, x) {
     return self(self, x - 1) + self(self, x - 2);
 });
 
-puts(fib(26))
+puts(fib(36))
