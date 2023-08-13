@@ -52,6 +52,27 @@ func testStringObject(t *testing.T, obj object.Object, expected string) bool {
 	return true
 }
 
+func testArrayObject(t *testing.T, obj object.Object, expected []interface{}) bool {
+	arrayObj, ok := obj.(*object.Array)
+	if !ok {
+		t.Errorf("Object is not an array object: %v", obj)
+		return false
+	}
+
+	if len(arrayObj.Elems) != len(expected) {
+		t.Errorf("Object is not an array object: %v", obj)
+		return false
+	}
+
+	for i, inner := range arrayObj.Elems {
+		if !testObject(t, inner, expected[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func testNullObject(t *testing.T, obj object.Object) bool {
 	_, ok := obj.(*object.Null)
 	if !ok {
@@ -72,6 +93,8 @@ func testObject(t *testing.T, obj object.Object, inner interface{}) bool {
 		return testBooleanObject(t, obj, inner)
 	case string:
 		return testStringObject(t, obj, inner)
+	case []interface{}:
+		return testArrayObject(t, obj, inner)
 	case nil:
 		return testNullObject(t, obj)
 	default:
@@ -296,6 +319,7 @@ func TestEvalRuntimeErrors(t *testing.T) {
 		{"foobar", mkSpan(0, 6), "Identifier not found"},
 		{"len(3)", mkSpan(0, 6), "\"len\" builtin takes a single string argument"},
 		{`len("", "")`, mkSpan(0, 11), "\"len\" builtin takes a single string argument"},
+		{`let a = [123, 123]; a[2]`, mkSpan(22, 23), "Index 2 exceeds length of the array (2)"},
 	}
 
 	for _, tt := range tests {
@@ -419,6 +443,37 @@ func TestLenBuiltin(t *testing.T) {
 		{`let a = "Hello world!"; len(a)`, 12},
 		{`let a = "Hello worl"; len(a)`, 10},
 		{`let a = "Hello wo"; let b = len; b(a)`, 8},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
+	}
+}
+
+func TestArrayObjects(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`[123, 234, "hello"]`, []interface{}{123, 234, "hello"}},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
+	}
+}
+
+func TestArrayIndexOperator(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`[123, 234, "hello"][0]`, 123},
+		{`[123, 234, "hello"][1]`, 234},
+		{`[123, 234, "hello"][2]`, "hello"},
+		{`let a = [123, 234, "hello"]; a[1]`, 234},
 	}
 
 	for _, tt := range tests {

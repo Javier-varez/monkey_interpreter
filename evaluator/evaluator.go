@@ -412,6 +412,52 @@ func evalCallExpr(expr *ast.CallExpr, env *object.Environment) object.Object {
 	return mkError(expr.CallableExpr.Span(), "Call expression must have a callable type (function literal or identifier bounded to a function)")
 }
 
+func evalArrayLiteralExpr(expr *ast.ArrayLiteralExpr, env *object.Environment) object.Object {
+	result := &object.Array{
+		Elems: []object.Object{},
+	}
+
+	for _, inner := range expr.Elems {
+		innerEval := Eval(inner, env)
+		if innerEval.Type() == object.ERROR_VALUE_OBJ {
+			return innerEval
+		}
+
+		result.Elems = append(result.Elems, innerEval)
+	}
+
+	return result
+}
+
+func evalArrayIndexOperatorExpr(expr *ast.ArrayIndexOperatorExpr, env *object.Environment) object.Object {
+	arrayObj := Eval(expr.ArrayExpr, env)
+	if arrayObj.Type() == object.ERROR_VALUE_OBJ {
+		return arrayObj
+	}
+
+	if arrayObj.Type() != object.ARRAY_OBJ {
+		return mkError(expr.ArrayExpr.Span(), "Expression must evaluate to an array object")
+	}
+
+	indexObj := Eval(expr.IndexExpr, env)
+	if indexObj.Type() == object.ERROR_VALUE_OBJ {
+		return indexObj
+	}
+
+	if indexObj.Type() != object.INTEGER_OBJ {
+		return mkError(expr.IndexExpr.Span(), "Expression must evaluate to an integer object")
+	}
+
+	indexValue := indexObj.(*object.Integer).Value
+	elems := &arrayObj.(*object.Array).Elems
+
+	if indexValue >= int64(len(*elems)) {
+		return mkError(expr.IndexExpr.Span(), fmt.Sprintf("Index %d exceeds length of the array (%d)", indexValue, len(*elems)))
+	}
+
+	return (*elems)[indexValue]
+}
+
 func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
 	case *ast.Program:
@@ -455,6 +501,12 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 	case *ast.StringLiteralExpr:
 		return &object.String{Value: node.Value}
+
+	case *ast.ArrayLiteralExpr:
+		return evalArrayLiteralExpr(node, env)
+
+	case *ast.ArrayIndexOperatorExpr:
+		return evalArrayIndexOperatorExpr(node, env)
 
 	default:
 		log.Fatalf("Unimplemented evaluation of node type: %T\n", node)
