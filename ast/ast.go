@@ -362,3 +362,29 @@ func (expr *StringLiteralExpr) Span() token.Span {
 func (expr *StringLiteralExpr) String() string {
 	return expr.StringLitToken.Literal
 }
+
+type ArrayLiteralExpr struct {
+	Lbracket, Rbracket token.Token
+	Elems              []Expression
+}
+
+func (expr *ArrayLiteralExpr) expressionNode() {}
+
+func (expr *ArrayLiteralExpr) Span() token.Span {
+	return expr.Lbracket.Span.Join(expr.Rbracket.Span)
+}
+
+func (expr *ArrayLiteralExpr) String() string {
+	var buffer bytes.Buffer
+
+	buffer.WriteString(expr.Lbracket.Literal)
+	for i, obj := range expr.Elems {
+		buffer.WriteString(obj.String())
+		if i != len(expr.Elems)-1 {
+			buffer.WriteString(", ")
+		}
+	}
+	buffer.WriteString(expr.Rbracket.Literal)
+
+	return buffer.String()
+}

@@ -132,6 +132,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFns[token.IF] = p.parseIfExpr
 	p.prefixParseFns[token.FUNCTION] = p.parseFnLiteralExpr
 	p.prefixParseFns[token.STRING] = p.parseStringLiteralExpr
+	p.prefixParseFns[token.LBRACKET] = p.parseArrayLiteralExpr
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.infixParseFns[token.PLUS] = p.parseInfixExpr
 	p.infixParseFns[token.MINUS] = p.parseInfixExpr
@@ -306,6 +307,29 @@ func (p *Parser) parseStringLiteralExpr() ast.Expression {
 		StringLitToken: p.curToken,
 		Value:          strings.Trim(p.curToken.Literal, "\""),
 	}
+}
+
+func (p *Parser) parseArrayLiteralExpr() ast.Expression {
+	expr := &ast.ArrayLiteralExpr{
+		Lbracket: p.curToken,
+		Elems:    []ast.Expression{},
+	}
+
+	p.nextToken()
+
+	for p.curToken.Type != token.RBRACKET {
+		inner := p.parseExpression(LOWEST)
+		expr.Elems = append(expr.Elems, inner)
+
+		p.nextToken()
+		if p.curToken.Type == token.COMMA {
+			p.nextToken()
+		}
+	}
+
+	expr.Rbracket = p.curToken
+
+	return expr
 }
 
 func (p *Parser) parsePrefixExpr() ast.Expression {

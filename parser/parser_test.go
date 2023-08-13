@@ -434,18 +434,42 @@ func testStringLiteralExpression(t *testing.T, exp ast.Expression, expected stri
 	return true
 }
 
-func testLiteralExpression(t *testing.T, exp ast.Expression, expected interface{}) bool {
+func testArrayLiteralExpression(t *testing.T, expr ast.Expression, elems []interface{}) bool {
+	arrayLiteralExpr, ok := expr.(*ast.ArrayLiteralExpr)
+	if !ok {
+		t.Errorf("Expression is not an array literal")
+		return false
+	}
+
+	if len(arrayLiteralExpr.Elems) != len(elems) {
+		t.Errorf("Number of elements in array does not match. Expected %d, got %d", len(elems), len(arrayLiteralExpr.Elems))
+		return false
+	}
+
+	for i := range arrayLiteralExpr.Elems {
+		if !testLiteralExpression(t, arrayLiteralExpr.Elems[i], elems[i]) {
+			t.Errorf("Error found in element with index: %d", i)
+			return false
+		}
+	}
+
+	return true
+}
+
+func testLiteralExpression(t *testing.T, expr ast.Expression, expected interface{}) bool {
 	switch v := expected.(type) {
 	case int:
-		return testIntegerLiteral(t, exp, int64(v))
+		return testIntegerLiteral(t, expr, int64(v))
 	case int64:
-		return testIntegerLiteral(t, exp, v)
+		return testIntegerLiteral(t, expr, v)
 	case bool:
-		return testBoolLiteral(t, exp, v)
+		return testBoolLiteral(t, expr, v)
 	case string:
-		return testIdentifier(t, exp, v)
+		return testIdentifier(t, expr, v)
+	case []interface{}:
+		return testArrayLiteralExpression(t, expr, v)
 	}
-	t.Errorf("type of exp not handled. got=%T", exp)
+	t.Errorf("type of exp not handled. got=%T", expr)
 	return false
 }
 
@@ -766,6 +790,28 @@ func TestStringLiteralExpression(t *testing.T) {
 	}
 
 	if !testStringLiteralExpression(t, stmt.Expr, "Hello world!") {
+		return
+	}
+}
+
+func TestArrayLiteralExpression(t *testing.T) {
+	input := `[123, test, true]`
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	checkDiagnostics(t, program)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	if !testArrayLiteralExpression(t, stmt.Expr, []interface{}{123, "test", true}) {
 		return
 	}
 }
