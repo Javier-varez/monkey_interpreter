@@ -815,3 +815,34 @@ func TestArrayLiteralExpression(t *testing.T) {
 		return
 	}
 }
+
+func TestArrayIndexOperator(t *testing.T) {
+	input := `a[123]`
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	checkDiagnostics(t, program)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	arrayIndexOperatorExpr, ok := stmt.Expr.(*ast.ArrayIndexOperatorExpr)
+	if !ok {
+		t.Fatalf("Not an array index operator expression: %v", stmt.Expr)
+	}
+
+	if !testLiteralExpression(t, arrayIndexOperatorExpr.ArrayExpr, "a") {
+		return
+	}
+
+	if !testLiteralExpression(t, arrayIndexOperatorExpr.IndexExpr, 123) {
+		return
+	}
+}

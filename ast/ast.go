@@ -388,3 +388,26 @@ func (expr *ArrayLiteralExpr) String() string {
 
 	return buffer.String()
 }
+
+type ArrayIndexOperatorExpr struct {
+	ArrayExpr          Expression
+	Lbracket, Rbracket token.Token
+	IndexExpr          Expression
+}
+
+func (expr *ArrayIndexOperatorExpr) expressionNode() {}
+
+func (expr *ArrayIndexOperatorExpr) Span() token.Span {
+	return expr.ArrayExpr.Span().Join(expr.Rbracket.Span)
+}
+
+func (expr *ArrayIndexOperatorExpr) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(expr.ArrayExpr.String())
+	out.WriteString(expr.Lbracket.Literal)
+	out.WriteString(expr.IndexExpr.String())
+	out.WriteString(expr.Rbracket.Literal)
+
+	return out.String()
+}

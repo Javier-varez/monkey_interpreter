@@ -22,6 +22,7 @@ const (
 	PRODUCT     // *
 	PREFIX      // - or !
 	CALL        // fn(x)
+	ARRAY_IDX   // array[idx]
 )
 
 var precedences = map[token.TokenType]int{
@@ -34,6 +35,7 @@ var precedences = map[token.TokenType]int{
 	token.ASTERISK: PRODUCT,
 	token.SLASH:    PRODUCT,
 	token.LPAREN:   CALL,
+	token.LBRACKET: ARRAY_IDX,
 }
 
 type prefixParseFn func() ast.Expression
@@ -143,6 +145,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.infixParseFns[token.GT] = p.parseInfixExpr
 	p.infixParseFns[token.LT] = p.parseInfixExpr
 	p.infixParseFns[token.LPAREN] = p.parseCallExpr
+	p.infixParseFns[token.LBRACKET] = p.parseArrayIndexExpr
 
 	p.nextToken()
 	p.nextToken()
@@ -380,6 +383,26 @@ func (p *Parser) parseCallExpr(left ast.Expression) ast.Expression {
 	}
 
 	expr.Rparen = p.curToken
+
+	return expr
+}
+
+func (p *Parser) parseArrayIndexExpr(left ast.Expression) ast.Expression {
+	expr := &ast.ArrayIndexOperatorExpr{
+		ArrayExpr: left,
+		Lbracket:  p.curToken,
+	}
+
+	p.nextToken()
+
+	expr.IndexExpr = p.parseExpression(LOWEST)
+	if p.peekToken.Type != token.RBRACKET {
+		p.mkError(p.peekToken.Span, "Expected ] delimiter to close array index expression")
+		return nil
+	}
+	p.nextToken()
+
+	expr.Rbracket = p.curToken
 
 	return expr
 }
