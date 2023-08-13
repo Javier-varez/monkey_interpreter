@@ -320,6 +320,13 @@ func TestEvalRuntimeErrors(t *testing.T) {
 		{"len(3)", mkSpan(0, 6), "\"len\" builtin takes a single string or array argument"},
 		{`len("", "")`, mkSpan(0, 11), "\"len\" builtin takes a single string or array argument"},
 		{`let a = [123, 123]; a[2]`, mkSpan(22, 23), "Index 2 exceeds length of the array (2)"},
+		{`first([])`, mkSpan(0, 9), "Array is empty"},
+		{`last([])`, mkSpan(0, 8), "Array is empty"},
+		{`rest([])`, mkSpan(0, 8), "Array is empty"},
+		{`first(1)`, mkSpan(0, 8), "\"first\" builtin takes a single array argument"},
+		{`last(1)`, mkSpan(0, 7), "\"last\" builtin takes a single array argument"},
+		{`rest(1)`, mkSpan(0, 7), "\"rest\" builtin takes a single array argument"},
+		{`push(3)`, mkSpan(0, 7), "\"push\" builtin takes an array argument and a new object to push"},
 	}
 
 	for _, tt := range tests {
@@ -477,6 +484,23 @@ func TestArrayIndexOperator(t *testing.T) {
 		{`[123, 234, "hello"][1]`, 234},
 		{`[123, 234, "hello"][2]`, "hello"},
 		{`let a = [123, 234, "hello"]; a[1]`, 234},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
+	}
+}
+
+func TestArrayBuiltins(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`first([123, 234, "hello"])`, 123},
+		{`last([123, 234, "hello"])`, "hello"},
+		{`rest([123, 234, "hello"])`, []interface{}{234, "hello"}},
+		{`push(["hello"], "world")`, []interface{}{"hello", "world"}},
 	}
 
 	for _, tt := range tests {

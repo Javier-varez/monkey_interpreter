@@ -31,6 +31,70 @@ var builtins map[string]object.BuiltinFunction = map[string]object.BuiltinFuncti
 
 		return mkError(span, "\"len\" builtin takes a single string or array argument")
 	},
+	"first": func(span token.Span, objects ...object.Object) object.Object {
+		if len(objects) != 1 {
+			return mkError(span, "\"first\" builtin takes a single array argument")
+		}
+
+		arrObj, ok := objects[0].(*object.Array)
+		if ok {
+			if len(arrObj.Elems) == 0 {
+				return mkError(span, "Array is empty")
+			}
+			return arrObj.Elems[0]
+		}
+
+		return mkError(span, "\"first\" builtin takes a single array argument")
+	},
+	"last": func(span token.Span, objects ...object.Object) object.Object {
+		if len(objects) != 1 {
+			return mkError(span, "\"last\" builtin takes a single array argument")
+		}
+
+		arrObj, ok := objects[0].(*object.Array)
+		if ok {
+			if len(arrObj.Elems) == 0 {
+				return mkError(span, "Array is empty")
+			}
+			return arrObj.Elems[len(arrObj.Elems)-1]
+		}
+
+		return mkError(span, "\"last\" builtin takes a single array argument")
+	},
+	"rest": func(span token.Span, objects ...object.Object) object.Object {
+		if len(objects) != 1 {
+			return mkError(span, "\"rest\" builtin takes a single array argument")
+		}
+
+		arrObj, ok := objects[0].(*object.Array)
+		if ok {
+			if len(arrObj.Elems) == 0 {
+				return mkError(span, "Array is empty")
+			}
+			newArr := &object.Array{Elems: make([]object.Object, len(arrObj.Elems)-1)}
+			copy(newArr.Elems[:], arrObj.Elems[1:])
+			return newArr
+		}
+
+		return mkError(span, "\"rest\" builtin takes a single array argument")
+	},
+	"push": func(span token.Span, objects ...object.Object) object.Object {
+		if len(objects) != 2 {
+			return mkError(span, "\"push\" builtin takes an array argument and a new object to push")
+		}
+
+		arrObj, ok := objects[0].(*object.Array)
+		if !ok {
+			return mkError(span, "\"push\" builtin takes an array argument and a new object to push")
+		}
+
+		oldLen := len(arrObj.Elems)
+		newArr := &object.Array{Elems: make([]object.Object, oldLen+1)}
+		copy(newArr.Elems[:oldLen], arrObj.Elems[:])
+		newArr.Elems[oldLen] = objects[1]
+
+		return newArr
+	},
 	"puts": func(span token.Span, objects ...object.Object) object.Object {
 		for _, object := range objects {
 			fmt.Print(object.Inspect())
