@@ -16,7 +16,7 @@ func mkError(s token.Span, msg string) *object.Error {
 var builtins map[string]object.BuiltinFunction = map[string]object.BuiltinFunction{
 	"len": func(span token.Span, objects ...object.Object) object.Object {
 		if len(objects) != 1 {
-			return mkError(span, "\"len\" builtin takes a single string argument")
+			return mkError(span, "\"len\" builtin takes a single string or array argument")
 		}
 
 		strObj, ok := objects[0].(*object.String)
@@ -24,7 +24,12 @@ var builtins map[string]object.BuiltinFunction = map[string]object.BuiltinFuncti
 			return &object.Integer{Value: int64(len(strObj.Value))}
 		}
 
-		return mkError(span, "\"len\" builtin takes a single string argument")
+		arrObj, ok := objects[0].(*object.Array)
+		if ok {
+			return &object.Integer{Value: int64(len(arrObj.Elems))}
+		}
+
+		return mkError(span, "\"len\" builtin takes a single string or array argument")
 	},
 	"puts": func(span token.Span, objects ...object.Object) object.Object {
 		for _, object := range objects {

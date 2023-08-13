@@ -317,8 +317,8 @@ func TestEvalRuntimeErrors(t *testing.T) {
 		{"-true", mkSpan(0, 5), "\"-\" requires an integer argument"},
 		{"if (10) {}", mkSpan(4, 6), "Condition must evaluate to a boolean object"},
 		{"foobar", mkSpan(0, 6), "Identifier not found"},
-		{"len(3)", mkSpan(0, 6), "\"len\" builtin takes a single string argument"},
-		{`len("", "")`, mkSpan(0, 11), "\"len\" builtin takes a single string argument"},
+		{"len(3)", mkSpan(0, 6), "\"len\" builtin takes a single string or array argument"},
+		{`len("", "")`, mkSpan(0, 11), "\"len\" builtin takes a single string or array argument"},
 		{`let a = [123, 123]; a[2]`, mkSpan(22, 23), "Index 2 exceeds length of the array (2)"},
 	}
 
@@ -443,6 +443,9 @@ func TestLenBuiltin(t *testing.T) {
 		{`let a = "Hello world!"; len(a)`, 12},
 		{`let a = "Hello worl"; len(a)`, 10},
 		{`let a = "Hello wo"; let b = len; b(a)`, 8},
+		{`let a = ["", ""]; let b = len; b(a)`, 2},
+		{`let a = [""]; let b = len; b(a)`, 1},
+		{`let a = []; let b = len; b(a)`, 0},
 	}
 
 	for _, tt := range tests {
