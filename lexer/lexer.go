@@ -71,6 +71,10 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.LBRACE, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
 	case '}':
 		tok = newToken(token.RBRACE, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
+	case '[':
+		tok = newToken(token.LBRACKET, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
+	case ']':
+		tok = newToken(token.RBRACKET, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
 	case ';':
 		tok = newToken(token.SEMICOLON, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
 	case ',':
@@ -170,6 +174,7 @@ func (l *Lexer) readString() (string, token.Span) {
 	for l.ch != '"' {
 		l.readChar()
 	}
+
 	// Skip the last "
 	l.readChar()
 	return l.input[startPos:l.position], token.Span{
