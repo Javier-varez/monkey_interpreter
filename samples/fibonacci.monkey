@@ -1,6 +1,6 @@
 let wrap = fn(self) {
-    fn(arg) {
-        self(self, arg)
+    fn(...) {
+        self(self, ...)
     }
 }
 
