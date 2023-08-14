@@ -22,6 +22,7 @@ const (
 	PRODUCT     // *
 	PREFIX      // - or !
 	CALL        // fn(x)
+	RANGE       // 1..2
 	ARRAY_IDX   // array[idx]
 )
 
@@ -36,6 +37,7 @@ var precedences = map[token.TokenType]int{
 	token.SLASH:    PRODUCT,
 	token.LPAREN:   CALL,
 	token.LBRACKET: ARRAY_IDX,
+	token.TWO_DOTS: RANGE,
 }
 
 type prefixParseFn func() ast.Expression
@@ -147,6 +149,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.infixParseFns[token.LT] = p.parseInfixExpr
 	p.infixParseFns[token.LPAREN] = p.parseCallExpr
 	p.infixParseFns[token.LBRACKET] = p.parseArrayIndexExpr
+	p.infixParseFns[token.TWO_DOTS] = p.parseRangeExpr
 
 	p.nextToken()
 	p.nextToken()
@@ -417,6 +420,19 @@ func (p *Parser) parseArrayIndexExpr(left ast.Expression) ast.Expression {
 	p.nextToken()
 
 	expr.Rbracket = p.curToken
+
+	return expr
+}
+
+func (p *Parser) parseRangeExpr(left ast.Expression) ast.Expression {
+	expr := &ast.RangeExpr{
+		StartExpr: left,
+		DotsToken: p.curToken,
+	}
+
+	precedence := p.curPrecedence()
+	p.nextToken()
+	expr.EndExpr = p.parseExpression(precedence)
 
 	return expr
 }

@@ -429,3 +429,25 @@ func (expr *VarArgsLiteralExpr) Span() token.Span {
 func (expr *VarArgsLiteralExpr) String() string {
 	return expr.Token.Literal
 }
+
+type RangeExpr struct {
+	StartExpr, EndExpr Expression
+	DotsToken          token.Token
+	Start, End         int64
+}
+
+func (expr *RangeExpr) expressionNode() {}
+
+func (expr *RangeExpr) Span() token.Span {
+	return expr.StartExpr.Span().Join(expr.EndExpr.Span())
+}
+
+func (expr *RangeExpr) String() string {
+	var buffer bytes.Buffer
+	buffer.WriteString("(")
+	buffer.WriteString(expr.StartExpr.String())
+	buffer.WriteString(expr.DotsToken.Literal)
+	buffer.WriteString(expr.EndExpr.String())
+	buffer.WriteString(")")
+	return buffer.String()
+}

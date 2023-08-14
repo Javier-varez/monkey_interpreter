@@ -529,3 +529,19 @@ func TestFunctionVarArgs(t *testing.T) {
 		testObject(t, result, tt.expected)
 	}
 }
+
+func TestRangeExpression(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`0..5`, []interface{}{0, 1, 2, 3, 4}},
+		{`1..6`, []interface{}{1, 2, 3, 4, 5}},
+		{`let a = [2, 8]; a[0]..a[1]`, []interface{}{2, 3, 4, 5, 6, 7}},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
+	}
+}

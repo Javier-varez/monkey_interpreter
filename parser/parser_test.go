@@ -456,6 +456,24 @@ func testArrayLiteralExpression(t *testing.T, expr ast.Expression, elems []inter
 	return true
 }
 
+func testRangeExpression(t *testing.T, expr ast.Expression, startExpr, endExpr int64) bool {
+	rangeExpr, ok := expr.(*ast.RangeExpr)
+	if !ok {
+		t.Errorf("Expression is not an array literal")
+		return false
+	}
+
+	if !testIntegerLiteral(t, rangeExpr.StartExpr, startExpr) {
+		return false
+	}
+
+	if !testIntegerLiteral(t, rangeExpr.EndExpr, endExpr) {
+		return false
+	}
+
+	return true
+}
+
 func testLiteralExpression(t *testing.T, expr ast.Expression, expected interface{}) bool {
 	switch v := expected.(type) {
 	case int:
@@ -883,5 +901,27 @@ func TestVarArgExpr(t *testing.T) {
 
 	if varArgsLiteralExpr.Token.Type != token.THREE_DOTS {
 		t.Fatalf("Unexpected token in var args literal")
+	}
+}
+
+func TestRangeExpression(t *testing.T) {
+	input := `0..3`
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	checkDiagnostics(t, program)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	if !testRangeExpression(t, stmt.Expr, 0, 3) {
+		return
 	}
 }

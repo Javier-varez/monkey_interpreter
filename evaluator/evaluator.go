@@ -563,6 +563,37 @@ func evalVarArgsLiteralExpr(node *ast.VarArgsLiteralExpr, env *object.Environmen
 	return mkError(node.Span(), "Function has no var args to expand")
 }
 
+func evalRangeExpr(node *ast.RangeExpr, env *object.Environment) object.Object {
+	startObj := Eval(node.StartExpr, env)
+	if startObj.Type() != object.INTEGER_OBJ {
+		return mkError(node.StartExpr.Span(), "Expression does not evaluate to an integer object")
+	}
+
+	endObj := Eval(node.EndExpr, env)
+	if endObj.Type() != object.INTEGER_OBJ {
+		return mkError(node.StartExpr.Span(), "Expression does not evaluate to an integer object")
+	}
+
+	startIntObj := startObj.(*object.Integer)
+	endIntObj := endObj.(*object.Integer)
+
+	incr := int64(1)
+	if startIntObj.Value > endIntObj.Value {
+		// Decreasing range
+		incr = -1
+	}
+
+	arrayObj := &object.Array{Elems: []object.Object{}}
+
+	curValue := startIntObj.Value
+	for curValue != endIntObj.Value {
+		arrayObj.Elems = append(arrayObj.Elems, &object.Integer{Value: curValue})
+		curValue = curValue + incr
+	}
+
+	return arrayObj
+}
+
 func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
 	case *ast.Program:
@@ -615,6 +646,9 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 	case *ast.VarArgsLiteralExpr:
 		return evalVarArgsLiteralExpr(node, env)
+
+	case *ast.RangeExpr:
+		return evalRangeExpr(node, env)
 
 	default:
 		log.Fatalf("Unimplemented evaluation of node type: %T\n", node)
