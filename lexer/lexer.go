@@ -7,7 +7,6 @@ import (
 type Lexer struct {
 	input          string
 	position       int  // current position in input (points to current char)
-	readPosition   int  // current reading position in input (after current char)
 	ch             byte // current char under examination
 	currentLine    int  // Keeps track of the current line
 	lineByteOffset int  // Keeps track of the offset to the start of the line in input
@@ -15,18 +14,18 @@ type Lexer struct {
 
 func New(input string) *Lexer {
 	l := &Lexer{input: input}
-	l.readChar()
+	l.ch = l.input[l.position]
 	return l
 }
 
 func (l *Lexer) readChar() {
-	if l.readPosition >= len(l.input) {
+	next := l.position + 1
+	if next >= len(l.input) {
 		l.ch = 0
 	} else {
-		l.ch = l.input[l.readPosition]
+		l.ch = l.input[next]
 	}
-	l.position = l.readPosition
-	l.readPosition += 1
+	l.position = next
 }
 
 func newToken(tokenType token.TokenType, literal byte, line, col int, text *string) token.Token {
@@ -47,7 +46,7 @@ func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 	switch l.ch {
 	case '=':
-		if l.peekChar() == '=' {
+		if l.peekChar(1) == '=' {
 			tok.Type = token.EQ
 			ch := l.ch
 			position := l.position
@@ -80,7 +79,7 @@ func (l *Lexer) NextToken() token.Token {
 	case ',':
 		tok = newToken(token.COMMA, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
 	case '!':
-		if l.peekChar() == '=' {
+		if l.peekChar(1) == '=' {
 			tok.Type = token.NOT_EQ
 			ch := l.ch
 			position := l.position
@@ -104,6 +103,8 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.GT, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
 	case '<':
 		tok = newToken(token.LT, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
+	case '.':
+		return l.readThreeDots()
 	case '"':
 		tok.Literal, tok.Span = l.readString()
 		tok.Type = token.STRING
@@ -126,18 +127,24 @@ func (l *Lexer) NextToken() token.Token {
 			tok.Type = token.INT
 			return tok
 		} else {
-			tok.Type = token.ILLEGAL
-			tok.Literal = string(l.ch)
-			tok.Span = token.Span{
-				Text:  &l.input,
-				Start: token.Location{Line: l.currentLine, Column: l.position - l.lineByteOffset},
-				End:   token.Location{Line: l.currentLine, Column: l.readPosition - l.lineByteOffset},
-			}
+			tok = l.illegalToken()
 		}
 	}
 
 	l.readChar()
 	return tok
+}
+
+func (l *Lexer) illegalToken() token.Token {
+	return token.Token{
+		Type:    token.ILLEGAL,
+		Literal: string(l.ch),
+		Span: token.Span{
+			Text:  &l.input,
+			Start: token.Location{Line: l.currentLine, Column: l.position - l.lineByteOffset},
+			End:   token.Location{Line: l.currentLine, Column: l.position + 1 - l.lineByteOffset},
+		},
+	}
 }
 
 func (l *Lexer) readIdentifier() (string, token.Span) {
@@ -184,21 +191,48 @@ func (l *Lexer) readString() (string, token.Span) {
 	}
 }
 
+func (l *Lexer) readThreeDots() token.Token {
+	firstDot := l.ch
+	secondDot := l.peekChar(1)
+	thirdDot := l.peekChar(2)
+
+	if firstDot != '.' || secondDot != '.' || thirdDot != '.' {
+		return l.illegalToken()
+	}
+
+	startPos := l.position
+
+	l.readChar()
+	l.readChar()
+	l.readChar()
+
+	return token.Token{
+		Type:    token.THREE_DOTS,
+		Literal: string(firstDot) + string(secondDot) + string(thirdDot),
+		Span: token.Span{
+			Text:  &l.input,
+			Start: token.Location{Line: l.currentLine, Column: startPos - l.lineByteOffset},
+			End:   token.Location{Line: l.currentLine, Column: l.position - l.lineByteOffset},
+		},
+	}
+}
+
 func (l *Lexer) skipWhitespace() {
 	for l.ch == '\n' || l.ch == '\r' || l.ch == ' ' || l.ch == '\t' {
 		if l.ch == '\n' {
 			l.currentLine += 1
-			l.lineByteOffset = l.readPosition
+			l.lineByteOffset = l.position + 1
 		}
 		l.readChar()
 	}
 }
 
-func (l *Lexer) peekChar() byte {
-	if l.readPosition >= len(l.input) {
+func (l *Lexer) peekChar(offset int) byte {
+	next := l.position + offset
+	if next >= len(l.input) {
 		return 0
 	}
-	return l.input[l.readPosition]
+	return l.input[next]
 }
 
 func isLetter(ch byte) bool {

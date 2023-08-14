@@ -90,8 +90,9 @@ const (
 	EQ       = "=="
 	NOT_EQ   = "!="
 
-	COMMA     = ","
-	SEMICOLON = ";"
+	COMMA      = ","
+	SEMICOLON  = ";"
+	THREE_DOTS = "..."
 
 	LPAREN   = "("
 	RPAREN   = ")"

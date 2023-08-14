@@ -42,6 +42,7 @@ if (5 < 10) {
 10 != 9;
 "test string that also has 123 numbers and -;/\\ special chars +=-<>";
 [123, 234];
+fn(...) { a(...) }
 `
 
 	tests := []token.Token{
@@ -126,7 +127,17 @@ if (5 < 10) {
 		{Type: token.INT, Literal: `234`, Span: newSpan(21, 6, 3)},
 		{Type: token.RBRACKET, Literal: `]`, Span: newSpan(21, 9, 1)},
 		{Type: token.SEMICOLON, Literal: ";", Span: newSpan(21, 10, 1)},
-		{Type: token.EOF, Literal: ``, Span: newSpan(22, 0, 0)},
+		{Type: token.FUNCTION, Literal: "fn", Span: newSpan(22, 0, 2)},
+		{Type: token.LPAREN, Literal: "(", Span: newSpan(22, 2, 1)},
+		{Type: token.THREE_DOTS, Literal: "...", Span: newSpan(22, 3, 3)},
+		{Type: token.RPAREN, Literal: ")", Span: newSpan(22, 6, 1)},
+		{Type: token.LBRACE, Literal: "{", Span: newSpan(22, 8, 1)},
+		{Type: token.IDENT, Literal: "a", Span: newSpan(22, 10, 1)},
+		{Type: token.LPAREN, Literal: "(", Span: newSpan(22, 11, 1)},
+		{Type: token.THREE_DOTS, Literal: "...", Span: newSpan(22, 12, 3)},
+		{Type: token.RPAREN, Literal: ")", Span: newSpan(22, 15, 1)},
+		{Type: token.RBRACE, Literal: "}", Span: newSpan(22, 17, 1)},
+		{Type: token.EOF, Literal: ``, Span: newSpan(23, 0, 0)},
 	}
 
 	l := New(input)
