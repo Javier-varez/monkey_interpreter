@@ -16,13 +16,13 @@ const (
 	// Operator precedence is defined by this enumeration
 	_ int = iota
 	LOWEST
+	RANGE       // 1..2
 	EQUALS      // == or !=
 	LESSGREATER // < or >
 	SUM         // +
 	PRODUCT     // *
 	PREFIX      // - or !
 	CALL        // fn(x)
-	RANGE       // 1..2
 	ARRAY_IDX   // array[idx]
 )
 
