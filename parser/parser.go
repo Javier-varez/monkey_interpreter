@@ -135,6 +135,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFns[token.FUNCTION] = p.parseFnLiteralExpr
 	p.prefixParseFns[token.STRING] = p.parseStringLiteralExpr
 	p.prefixParseFns[token.LBRACKET] = p.parseArrayLiteralExpr
+	p.prefixParseFns[token.THREE_DOTS] = p.parseVarArgsLiteralExpr
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.infixParseFns[token.PLUS] = p.parseInfixExpr
 	p.infixParseFns[token.MINUS] = p.parseInfixExpr
@@ -276,8 +277,8 @@ func (p *Parser) parseFnLiteralExpr() ast.Expression {
 	p.nextToken()
 
 	for p.curToken.Type != token.RPAREN {
-		if p.curToken.Type != token.IDENT {
-			p.mkError(p.curToken.Span, "Parameters to an fn literal must be identifier expressions")
+		if (p.curToken.Type != token.IDENT) && (p.curToken.Type != token.THREE_DOTS) {
+			p.mkError(p.curToken.Span, "Parameters to an fn literal must be identifier expressions or \"...\"")
 			return nil
 		}
 
@@ -286,9 +287,18 @@ func (p *Parser) parseFnLiteralExpr() ast.Expression {
 			return nil
 		}
 
-		identExpr := p.parseIdentExpr().(*ast.IdentifierExpr)
-		expr.Args = append(expr.Args, identExpr)
-		p.nextToken()
+		if p.curToken.Type == token.THREE_DOTS {
+			expr.VarArgs = true
+			p.nextToken()
+			if p.curToken.Type != token.RPAREN {
+				p.mkError(p.curToken.Span, "`...` var args must be the last argument to a function")
+				return nil
+			}
+		} else {
+			identExpr := p.parseIdentExpr().(*ast.IdentifierExpr)
+			expr.Args = append(expr.Args, identExpr)
+			p.nextToken()
+		}
 
 		if p.curToken.Type == token.COMMA {
 			p.nextToken()
@@ -310,6 +320,10 @@ func (p *Parser) parseStringLiteralExpr() ast.Expression {
 		StringLitToken: p.curToken,
 		Value:          strings.Trim(p.curToken.Literal, "\""),
 	}
+}
+
+func (p *Parser) parseVarArgsLiteralExpr() ast.Expression {
+	return &ast.VarArgsLiteralExpr{Token: p.curToken}
 }
 
 func (p *Parser) parseArrayLiteralExpr() ast.Expression {

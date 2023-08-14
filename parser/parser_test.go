@@ -656,13 +656,17 @@ fn(x,y) {
 
 func TestFnLiteralExpressionParams(t *testing.T) {
 	tests := []struct {
-		input string
-		args  []string
+		input   string
+		args    []string
+		VarArgs bool
 	}{
-		{"fn() {}", []string{}},
-		{"fn(x) {}", []string{"x"}},
-		{"fn(x,y,z) {}", []string{"x", "y", "z"}},
-		{"fn(abc,def) {}", []string{"abc", "def"}},
+		{"fn() {}", []string{}, false},
+		{"fn(...) {}", []string{}, true},
+		{"fn(x) {}", []string{"x"}, false},
+		{"fn(x,...) {}", []string{"x"}, true},
+		{"fn(x,y,z) {}", []string{"x", "y", "z"}, false},
+		{"fn(abc,def) {}", []string{"abc", "def"}, false},
+		{"fn(abc,def,...) {}", []string{"abc", "def"}, true},
 	}
 
 	for _, test := range tests {
@@ -688,6 +692,14 @@ func TestFnLiteralExpressionParams(t *testing.T) {
 
 		if len(fnLitExpr.Args) != len(test.args) {
 			t.Fatalf("Unexpected number of function args: %d", len(fnLitExpr.Args))
+		}
+
+		if fnLitExpr.VarArgs != test.VarArgs {
+			if fnLitExpr.VarArgs {
+				t.Fatalf("Function has variable arguments, but they were not expected")
+			} else {
+				t.Fatalf("Function does not have variable arguments, but they were expected")
+			}
 		}
 
 		for idx, expectedArg := range test.args {
@@ -844,5 +856,32 @@ func TestArrayIndexOperator(t *testing.T) {
 
 	if !testLiteralExpression(t, arrayIndexOperatorExpr.IndexExpr, 123) {
 		return
+	}
+}
+
+func TestVarArgExpr(t *testing.T) {
+	input := `...`
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	checkDiagnostics(t, program)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	varArgsLiteralExpr, ok := stmt.Expr.(*ast.VarArgsLiteralExpr)
+	if !ok {
+		t.Fatalf("Not an array index operator expression: %v", stmt.Expr)
+	}
+
+	if varArgsLiteralExpr.Token.Type != token.THREE_DOTS {
+		t.Fatalf("Unexpected token in var args literal")
 	}
 }

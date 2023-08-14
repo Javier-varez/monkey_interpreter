@@ -293,6 +293,7 @@ func (expr *IfExpr) String() string {
 type FnLiteralExpr struct {
 	FnToken token.Token
 	Args    []*IdentifierExpr
+	VarArgs bool
 	Body    *BlockStatement
 }
 
@@ -309,9 +310,12 @@ func (expr *FnLiteralExpr) String() string {
 	out.WriteString("(")
 	for i, arg := range expr.Args {
 		out.WriteString(arg.String())
-		if i != len(expr.Args)-1 {
+		if i != len(expr.Args)-1 || expr.VarArgs {
 			out.WriteString(",")
 		}
+	}
+	if expr.VarArgs {
+		out.WriteString("...")
 	}
 	out.WriteString(") ")
 	out.WriteString(expr.Body.String())
@@ -410,4 +414,18 @@ func (expr *ArrayIndexOperatorExpr) String() string {
 	out.WriteString(expr.Rbracket.Literal)
 
 	return out.String()
+}
+
+type VarArgsLiteralExpr struct {
+	Token token.Token
+}
+
+func (expr *VarArgsLiteralExpr) expressionNode() {}
+
+func (expr *VarArgsLiteralExpr) Span() token.Span {
+	return expr.Token.Span
+}
+
+func (expr *VarArgsLiteralExpr) String() string {
+	return expr.Token.Literal
 }
