@@ -104,7 +104,7 @@ func (l *Lexer) NextToken() token.Token {
 	case '<':
 		tok = newToken(token.LT, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
 	case '.':
-		return l.readThreeDots()
+		return l.readDots()
 	case '"':
 		tok.Literal, tok.Span = l.readString()
 		tok.Type = token.STRING
@@ -191,24 +191,31 @@ func (l *Lexer) readString() (string, token.Span) {
 	}
 }
 
-func (l *Lexer) readThreeDots() token.Token {
+func (l *Lexer) readDots() token.Token {
 	firstDot := l.ch
 	secondDot := l.peekChar(1)
 	thirdDot := l.peekChar(2)
 
-	if firstDot != '.' || secondDot != '.' || thirdDot != '.' {
+	if firstDot != '.' || secondDot != '.' {
 		return l.illegalToken()
 	}
 
 	startPos := l.position
+	literal := string(firstDot) + string(secondDot)
+	tokType := token.TWO_DOTS
 
 	l.readChar()
 	l.readChar()
-	l.readChar()
+
+	if thirdDot == '.' {
+		literal = literal + string(thirdDot)
+		tokType = token.THREE_DOTS
+		l.readChar()
+	}
 
 	return token.Token{
-		Type:    token.THREE_DOTS,
-		Literal: string(firstDot) + string(secondDot) + string(thirdDot),
+		Type:    token.TokenType(tokType),
+		Literal: literal,
 		Span: token.Span{
 			Text:  &l.input,
 			Start: token.Location{Line: l.currentLine, Column: startPos - l.lineByteOffset},

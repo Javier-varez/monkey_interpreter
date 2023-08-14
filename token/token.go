@@ -92,6 +92,7 @@ const (
 
 	COMMA      = ","
 	SEMICOLON  = ";"
+	TWO_DOTS   = ".."
 	THREE_DOTS = "..."
 
 	LPAREN   = "("
