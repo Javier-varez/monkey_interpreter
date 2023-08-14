@@ -1,23 +1,36 @@
 let wrap = fn(self) {
     fn(...) {
-        self(self, ...)
+        self(self, ...);
+    };
+};
+
+let reduce = fn(arr, initial, callable) {
+    let iter = wrap(fn(self, arr, acc) {
+        if (len(arr) == 0) {
+            return acc;
+        };
+
+        let obj = first(arr);
+        let acc = callable(obj, acc);
+        return self(self, rest(arr), acc);
+    });
+
+    return iter(arr, initial);
+};
+
+let fib = fn(n) {
+    if (n < 2) {
+        return n;
     }
+
+    let state = reduce(2..(n+1), [0, 1], fn(idx, state) {
+        let f = state[0];
+        let s = state[1];
+        let next = f + s;
+        return [s, next];
+    });
+
+    return state[1];
 }
 
-let loop = wrap(fn(self, start, end, func, param) {
-    if (start < end) {
-        let result = func(param)
-        return self(self, start + 1, end, func, result)
-    }
-    return param;
-})
-
-let n = 36
-
-let res = loop(2, n+1, fn(param) {
-    let pOne = param[0]
-    let pTwo = param[1]
-    let res = [pTwo, pOne + pTwo]
-}, [0, 1])
-
-puts(res[1])
+puts(fib(36))
