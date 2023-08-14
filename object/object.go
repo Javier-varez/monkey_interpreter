@@ -21,6 +21,7 @@ const (
 	FUNCTION_OBJ     = "FUNCTION"
 	BUILTIN_OBJ      = "BUILTIN"
 	ARRAY_OBJ        = "ARRAY"
+	VAR_ARGS_OBJ     = "VAR_ARGS"
 )
 
 type Object interface {
@@ -151,9 +152,10 @@ func (e *Error) ContextualError() string {
 }
 
 type Function struct {
-	Args []*ast.IdentifierExpr
-	Body *ast.BlockStatement
-	Env  *Environment
+	Args    []*ast.IdentifierExpr
+	VarArgs bool
+	Body    *ast.BlockStatement
+	Env     *Environment
 }
 
 func (f *Function) Type() ObjectType {
@@ -201,6 +203,29 @@ func (a *Array) Type() ObjectType {
 }
 
 func (a *Array) Inspect() string {
+	var buffer bytes.Buffer
+
+	buffer.WriteString("[")
+	for i, obj := range a.Elems {
+		buffer.WriteString(obj.Inspect())
+		if i != len(a.Elems)-1 {
+			buffer.WriteString(", ")
+		}
+	}
+	buffer.WriteString("]")
+
+	return buffer.String()
+}
+
+type VarArgs struct {
+	Elems []Object
+}
+
+func (a *VarArgs) Type() ObjectType {
+	return VAR_ARGS_OBJ
+}
+
+func (a *VarArgs) Inspect() string {
 	var buffer bytes.Buffer
 
 	buffer.WriteString("[")

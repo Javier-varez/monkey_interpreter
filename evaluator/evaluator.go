@@ -102,6 +102,18 @@ var builtins map[string]object.BuiltinFunction = map[string]object.BuiltinFuncti
 		fmt.Println()
 		return &object.Null{}
 	},
+	"toArray": func(span token.Span, objects ...object.Object) object.Object {
+		if len(objects) != 1 {
+			return mkError(span, "\"toArray\" builtin takes a VarArg argument")
+		}
+
+		varArgObj, ok := objects[0].(*object.VarArgs)
+		if !ok {
+			return mkError(span, "\"toArray\" builtin takes a VarArg argument")
+		}
+
+		return &object.Array{Elems: varArgObj.Elems}
+	},
 }
 
 func evalAdd(leftObject, rightObject object.Object) object.Object {
@@ -411,9 +423,10 @@ func evalIdentifierExpr(expr *ast.IdentifierExpr, env *object.Environment) objec
 
 func evalFnLiteralExpr(expr *ast.FnLiteralExpr, env *object.Environment) object.Object {
 	return &object.Function{
-		Args: expr.Args,
-		Body: expr.Body,
-		Env:  env.Copy(),
+		Args:    expr.Args,
+		VarArgs: expr.VarArgs,
+		Body:    expr.Body,
+		Env:     env.Copy(),
 	}
 }
 
@@ -432,10 +445,6 @@ func evalCallBuiltin(builtin *object.Builtin, expr *ast.CallExpr, env *object.En
 }
 
 func evalCallFnObject(fnObj *object.Function, expr *ast.CallExpr, env *object.Environment) object.Object {
-	if len(fnObj.Args) != len(expr.Args) {
-		return mkError(expr.Span(), fmt.Sprintf("Callable takes %d arguments, but %d were supplied", len(fnObj.Args), len(expr.Args)))
-	}
-
 	// Eval args
 	var args []object.Object
 	for _, arg := range expr.Args {
@@ -443,13 +452,32 @@ func evalCallFnObject(fnObj *object.Function, expr *ast.CallExpr, env *object.En
 		if res.Type() == object.ERROR_VALUE_OBJ {
 			return res
 		}
-		args = append(args, res)
+
+		if res.Type() == object.VAR_ARGS_OBJ {
+			// Expanded on call site
+			varArgsObj := res.(*object.VarArgs)
+			args = append(args, varArgsObj.Elems...)
+		} else {
+			args = append(args, res)
+		}
 	}
 
-	// Bound args to new environment
+	if !fnObj.VarArgs && len(fnObj.Args) != len(args) {
+		return mkError(expr.Span(), fmt.Sprintf("Callable takes %d arguments, but %d were supplied", len(fnObj.Args), len(args)))
+	}
+
+	if fnObj.VarArgs && len(fnObj.Args) > len(args) {
+		return mkError(expr.Span(), fmt.Sprintf("Callable takes at least %d arguments, but only %d were supplied", len(fnObj.Args), len(args)))
+	}
+
+	// Bind args to new environment
 	newEnv := object.NewEnclosedEnvironment(fnObj.Env)
-	for i := range expr.Args {
+	for i := range fnObj.Args {
 		newEnv.Set(fnObj.Args[i].IdentToken.Literal, args[i])
+	}
+	if fnObj.VarArgs {
+		varArgs := args[len(fnObj.Args):]
+		newEnv.SetVarArgs(varArgs)
 	}
 
 	result := Eval(fnObj.Body, newEnv)
@@ -527,6 +555,14 @@ func evalArrayIndexOperatorExpr(expr *ast.ArrayIndexOperatorExpr, env *object.En
 	return (*elems)[indexValue]
 }
 
+func evalVarArgsLiteralExpr(node *ast.VarArgsLiteralExpr, env *object.Environment) object.Object {
+	if varArgs, ok := env.GetVarArgs(); ok {
+		return &object.VarArgs{Elems: varArgs}
+	}
+
+	return mkError(node.Span(), "Function has no var args to expand")
+}
+
 func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
 	case *ast.Program:
@@ -576,6 +612,9 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 	case *ast.ArrayIndexOperatorExpr:
 		return evalArrayIndexOperatorExpr(node, env)
+
+	case *ast.VarArgsLiteralExpr:
+		return evalVarArgsLiteralExpr(node, env)
 
 	default:
 		log.Fatalf("Unimplemented evaluation of node type: %T\n", node)

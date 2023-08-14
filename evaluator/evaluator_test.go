@@ -327,6 +327,8 @@ func TestEvalRuntimeErrors(t *testing.T) {
 		{`last(1)`, mkSpan(0, 7), "\"last\" builtin takes a single array argument"},
 		{`rest(1)`, mkSpan(0, 7), "\"rest\" builtin takes a single array argument"},
 		{`push(3)`, mkSpan(0, 7), "\"push\" builtin takes an array argument and a new object to push"},
+		{`let myFn = fn(a, ...) {}; myFn()`, mkSpan(26, 32), "Callable takes at least 1 arguments, but only 0 were supplied"},
+		{`let myFn = fn(a, ...) { fn(a, b, ...){}(a,...) }; myFn(3)`, mkSpan(24, 46), "Callable takes at least 2 arguments, but only 1 were supplied"},
 	}
 
 	for _, tt := range tests {
@@ -501,6 +503,25 @@ func TestArrayBuiltins(t *testing.T) {
 		{`last([123, 234, "hello"])`, "hello"},
 		{`rest([123, 234, "hello"])`, []interface{}{234, "hello"}},
 		{`push(["hello"], "world")`, []interface{}{"hello", "world"}},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
+	}
+}
+
+func TestFunctionVarArgs(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`fn(a, ...) { let v = toArray(...); len(v) + a }(12, 1, 2, 3, 4)`, 16},
+		{`fn(a, ...) { fn(a, b, c, d) { return a + b + c + d }(a, ...) }(1, 2, 3, 4)`, 10},
+		{`fn(a, ...) { fn(a, b, c, d, ...) { return len(toArray(...)) }(a, ...) }(1, 2, 3, 4)`, 0},
+		{`fn(a, ...) { fn(a, b, c, d, ...) { return len(toArray(...)) }(a, ...) }(1, 2, 3, 4, 5)`, 1},
+		{`fn(a, ...) { fn(a, ...) { return len(toArray(...)) }(a, toArray(...)) }(1, 2, 3, 4, 5)`, 1},
+		{`fn(a, ...) { fn(a, ...) { return len(toArray(...)[0]) }(a, toArray(...)) }(1, 2, 3, 4, 5)`, 4},
 	}
 
 	for _, tt := range tests {
