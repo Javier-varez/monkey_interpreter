@@ -1,0 +1,1 @@
+(({{Transpile .ObjExpr}})[{{Transpile .IndexExpr}}])

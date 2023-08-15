@@ -176,3 +176,35 @@ func TestReturnStatements(t *testing.T) {
 		}
 	}
 }
+
+func TestArrayLiteralExpressions(t *testing.T) {
+	test := []struct {
+		input          string
+		expectedOutput string
+	}{
+		{`puts([12, 20, "hi"])`, "[12, 20, hi]\n"},
+	}
+	for i, tt := range test {
+		out := testTranspile(tt.input)
+		if out != tt.expectedOutput {
+			t.Errorf("[%d] Test failed. expected %q, got %q", i, tt.expectedOutput, out)
+		}
+	}
+}
+
+func TestArrayIndexOperator(t *testing.T) {
+	test := []struct {
+		input          string
+		expectedOutput string
+	}{
+		{`puts([12, 20, "hi"][0])`, "12\n"},
+		{`puts([12, 20, "hi"][1])`, "20\n"},
+		{`puts([12, 20, "hi"][2])`, "hi\n"},
+	}
+	for i, tt := range test {
+		out := testTranspile(tt.input)
+		if out != tt.expectedOutput {
+			t.Errorf("[%d] Test failed. expected %q, got %q", i, tt.expectedOutput, out)
+		}
+	}
+}

@@ -36,6 +36,8 @@ const (
 	BOOL_LITERAL_EXPRESSION    = astNodeType("BOOL_LITERAL_EXPRESSION")
 	IF_EXPRESSION              = astNodeType("IF_EXPRESSION")
 	RETURN_STATEMENT           = astNodeType("RETURN_STATEMENT")
+	ARRAY_LITERAL_EXPRESSION   = astNodeType("ARRAY_LITERAL_EXPRESSION")
+	INDEX_OPERATOR_EXPRESSION  = astNodeType("INDEX_OPERATOR_EXPRESSION")
 )
 
 const runtimeHeaderFile string = "runtime/include/runtime.h"
@@ -73,6 +75,8 @@ func init() {
 	loadTemplate(INFIX_EXPRESSION, "runtime/templates/infix_expr.cpp")
 	loadTemplate(IF_EXPRESSION, "runtime/templates/if_expr.cpp")
 	loadTemplate(RETURN_STATEMENT, "runtime/templates/return_statement.cpp")
+	loadTemplate(ARRAY_LITERAL_EXPRESSION, "runtime/templates/array_literal_expr.cpp")
+	loadTemplate(INDEX_OPERATOR_EXPRESSION, "runtime/templates/index_operator_expr.cpp")
 }
 
 var indent int = 0
@@ -179,6 +183,10 @@ func transpileInner(node ast.Node) string {
 		return execTemplate(IF_EXPRESSION, node)
 	case *ast.ReturnStatement:
 		return execTemplate(RETURN_STATEMENT, node)
+	case *ast.ArrayLiteralExpr:
+		return execTemplate(ARRAY_LITERAL_EXPRESSION, node)
+	case *ast.IndexOperatorExpr:
+		return execTemplate(INDEX_OPERATOR_EXPRESSION, node)
 	default:
 		log.Fatalf("Unsupported node type: %T\n", node)
 	}

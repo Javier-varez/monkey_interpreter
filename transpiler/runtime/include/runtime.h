@@ -75,6 +75,23 @@ private:
   std::shared_ptr<Callable> callable;
 };
 
+class Array {
+public:
+  template<typename... Args>
+  explicit Array(Args&&...args) noexcept;
+
+  inline Object operator[](Object index) const noexcept;
+
+  inline Object len() const noexcept;
+
+  using Iterator = std::vector<Object>::const_iterator;
+  inline Iterator begin() const noexcept;
+  inline Iterator end() const noexcept;
+
+private:
+  std::shared_ptr<std::vector<Object>> data;
+};
+
 [[nodiscard]] inline std::string_view
 objectTypeToString(const ObjectType type) {
   using enum ObjectType;
@@ -105,7 +122,7 @@ struct Object final {
   ObjectType type{ObjectType::NIL};
   // TODO: Array object
   // TODO: Map object
-  std::variant<Nil, int64_t, bool, std::string, Function> val{Nil{}};
+  std::variant<Nil, int64_t, bool, std::string, Function, Array> val{Nil{}};
 
   inline static Object makeInt(const int64_t val) noexcept {
     return Object{
@@ -121,17 +138,24 @@ struct Object final {
     };
   }
 
-  inline static Object makeString(std::string_view sv) noexcept {
+  inline static Object makeString(const std::string_view sv) noexcept {
     return Object{
         .type = ObjectType::STRING,
         .val{std::string{sv}},
     };
   }
 
-  inline static Object makeFunction(Function f) noexcept {
+  inline static Object makeFunction(const Function f) noexcept {
     return Object{
         .type = ObjectType::FUNCTION,
         .val{f},
+    };
+  }
+
+  inline static Object makeArray(const Array a) noexcept {
+    return Object{
+        .type = ObjectType::ARRAY,
+        .val{a},
     };
   }
 
@@ -156,6 +180,15 @@ struct Object final {
     return std::get<std::string>(val);
   }
 
+  inline Array getArray() const noexcept {
+    check(type == ObjectType::ARRAY,
+          "Attempted to unwrap array but object type was `"sv,
+          objectTypeToString(type), '`');
+    return std::get<Array>(val);
+  }
+
+  [[nodiscard]] inline std::string inspect() const noexcept;
+
   struct Printer {
     [[nodiscard]] std::string operator()(const Nil &val) noexcept {
       return "nil"s;
@@ -178,14 +211,27 @@ struct Object final {
 
       return "false"s;
     }
+
     [[nodiscard]] std::string operator()(const Function &val) noexcept {
       return "<Function>"s;
     }
-  };
 
-  [[nodiscard]] inline std::string inspect() const noexcept {
-    return std::visit(Printer{}, val);
-  }
+    [[nodiscard]] std::string operator()(const Array &val) noexcept {
+      std::ostringstream stream;
+      stream << '[';
+      bool firstIter = true;
+      for (const Object& obj : val) {
+        if (!firstIter) {
+          stream << ", ";
+        } else {
+          firstIter = false;
+        }
+        stream << obj.inspect();
+      }
+      stream << ']';
+      return stream.str();
+    }
+  };
 
   template <typename... Args>
   Object operator()(const Args &...args) const noexcept;
@@ -193,7 +239,13 @@ struct Object final {
   inline Object operator-() const noexcept;
 
   inline Object operator!() const noexcept;
+
+  inline Object operator[](Object index) const noexcept;
 };
+
+[[nodiscard]] inline std::string Object::inspect() const noexcept {
+  return std::visit(Printer{}, val);
+}
 
 inline Object operator+(const Object &lhs, const Object &rhs) noexcept {
   if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
@@ -297,6 +349,14 @@ inline Object Object::operator!() const noexcept {
   return Object::makeBool(!getBool());
 }
 
+inline Object Object::operator[](Object index) const noexcept {
+  if (type == ObjectType::ARRAY) {
+    return getArray()[index];
+  }
+
+  fatal("Attempted to use index operator on an unsupported object: "sv, objectTypeToString(type));
+}
+
 Object Function::operator()(size_t count, ...) const noexcept {
   va_list args;
   va_start(args, count);
@@ -326,6 +386,26 @@ Object Function::CallableImpl<T, NumArgs, HasVarArgs>::vcall(
   } else {
     fatal("VarArgs are not implemented yet"sv);
   }
+}
+
+template<typename... Args>
+Array::Array(Args&&...args) noexcept : data{std::make_shared<std::vector<Object>>(std::vector<Object>{args...})} {}
+
+Object Array::operator[](Object index) const noexcept {
+  check(index.type == ObjectType::INTEGER, "Attempted to index an array with an object of type "sv, objectTypeToString(index.type));
+  return (*data)[index.getInteger()];
+}
+
+Object Array::len() const noexcept {
+  return Object::makeInt((*data).size());
+}
+
+Array::Iterator Array::begin() const noexcept{
+  return (*data).cbegin();
+}
+
+Array::Iterator Array::end() const noexcept{
+  return (*data).cend();
 }
 
 template <typename... Args> Object puts(Args &&...args) noexcept {
