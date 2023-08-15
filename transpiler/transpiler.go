@@ -128,7 +128,7 @@ func Compile(program string) string {
 
 	file.Close()
 
-	cmd := exec.Command("clang++", "-std=c++20", "-Wall", "-Werror", "-o", compiledFileName, fileName)
+	cmd := exec.Command("c++", "-std=c++20", "-Wall", "-Werror", "-o", compiledFileName, fileName)
 	log.Printf("Running command %q\n", cmd.String())
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
