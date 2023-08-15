@@ -451,3 +451,29 @@ func (expr *RangeExpr) String() string {
 	buffer.WriteString(")")
 	return buffer.String()
 }
+
+type MapLiteralExpr struct {
+	Lbrace, Rbrace token.Token
+	Map            map[Expression]Expression
+}
+
+func (expr *MapLiteralExpr) expressionNode() {}
+
+func (expr *MapLiteralExpr) Span() token.Span {
+	return expr.Lbrace.Span.Join(expr.Rbrace.Span)
+}
+
+func (expr *MapLiteralExpr) String() string {
+	var buffer bytes.Buffer
+
+	buffer.WriteString(expr.Lbrace.Literal)
+	for k, v := range expr.Map {
+		buffer.WriteString(k.String())
+		buffer.WriteString(" : ")
+		buffer.WriteString(v.String())
+		buffer.WriteString(", ")
+	}
+	buffer.WriteString(expr.Rbrace.Literal)
+
+	return buffer.String()
+}

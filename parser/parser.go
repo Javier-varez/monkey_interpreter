@@ -138,6 +138,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFns[token.STRING] = p.parseStringLiteralExpr
 	p.prefixParseFns[token.LBRACKET] = p.parseArrayLiteralExpr
 	p.prefixParseFns[token.THREE_DOTS] = p.parseVarArgsLiteralExpr
+	p.prefixParseFns[token.LBRACE] = p.parseMapLiteralExpr
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.infixParseFns[token.PLUS] = p.parseInfixExpr
 	p.infixParseFns[token.MINUS] = p.parseInfixExpr
@@ -327,6 +328,38 @@ func (p *Parser) parseStringLiteralExpr() ast.Expression {
 
 func (p *Parser) parseVarArgsLiteralExpr() ast.Expression {
 	return &ast.VarArgsLiteralExpr{Token: p.curToken}
+}
+
+func (p *Parser) parseMapLiteralExpr() ast.Expression {
+	expr := &ast.MapLiteralExpr{
+		Lbrace: p.curToken,
+		Map:    map[ast.Expression]ast.Expression{},
+	}
+
+	p.nextToken()
+
+	for p.curToken.Type != token.RBRACE {
+		key := p.parseExpression(LOWEST)
+
+		if p.peekToken.Type != token.COLON {
+			p.mkError(p.peekToken.Span, "Expected colon to separate key and value")
+			return nil
+		}
+		p.nextToken()
+		p.nextToken()
+
+		value := p.parseExpression(LOWEST)
+		expr.Map[key] = value
+
+		p.nextToken()
+		if p.curToken.Type == token.COMMA {
+			p.nextToken()
+		}
+	}
+
+	expr.Rbrace = p.curToken
+
+	return expr
 }
 
 func (p *Parser) parseArrayLiteralExpr() ast.Expression {

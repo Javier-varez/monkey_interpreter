@@ -474,6 +474,39 @@ func testRangeExpression(t *testing.T, expr ast.Expression, startExpr, endExpr i
 	return true
 }
 
+func testMapLiteralExpression(t *testing.T, expr ast.Expression, expectedMap map[string]interface{}) bool {
+	mapExpr, ok := expr.(*ast.MapLiteralExpr)
+	if !ok {
+		t.Errorf("Expression is not a map literal")
+		return false
+	}
+
+	if len(mapExpr.Map) != len(expectedMap) {
+		t.Errorf("Map sizes do not match. Expected %d, got %d", len(expectedMap), len(mapExpr.Map))
+		return false
+	}
+
+	for k, v := range mapExpr.Map {
+		kStr, ok := k.(*ast.StringLiteralExpr)
+		if !ok {
+			t.Errorf("Key is not a string literal %v", k)
+			return false
+		}
+
+		expectedVal, ok := expectedMap[kStr.Value]
+		if !ok {
+			t.Errorf("Key is not in expected map: %s", k)
+			return false
+		}
+
+		if !testLiteralExpression(t, v, expectedVal) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func testLiteralExpression(t *testing.T, expr ast.Expression, expected interface{}) bool {
 	switch v := expected.(type) {
 	case int:
@@ -484,6 +517,8 @@ func testLiteralExpression(t *testing.T, expr ast.Expression, expected interface
 		return testBoolLiteral(t, expr, v)
 	case string:
 		return testIdentifier(t, expr, v)
+	case map[string]interface{}:
+		testMapLiteralExpression(t, expr, v)
 	case []interface{}:
 		return testArrayLiteralExpression(t, expr, v)
 	}
@@ -922,6 +957,28 @@ func TestRangeExpression(t *testing.T) {
 	}
 
 	if !testRangeExpression(t, stmt.Expr, 0, 3) {
+		return
+	}
+}
+
+func TestMapLiteralExpression(t *testing.T) {
+	input := `{ "hi" : 1, "hello": 2, "noice": heh }`
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatalf("ParseProgram() returned a nil program")
+	}
+
+	checkDiagnostics(t, program)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
+	}
+
+	if !testMapLiteralExpression(t, stmt.Expr, map[string]interface{}{"hi": 1, "hello": 2, "noice": "heh"}) {
 		return
 	}
 }
