@@ -44,6 +44,7 @@ if (5 < 10) {
 [123, 234];
 fn(...) { a(...) }
 1..2
+:
 `
 
 	tests := []token.Token{
@@ -141,7 +142,8 @@ fn(...) { a(...) }
 		{Type: token.INT, Literal: "1", Span: newSpan(23, 0, 1)},
 		{Type: token.TWO_DOTS, Literal: "..", Span: newSpan(23, 1, 2)},
 		{Type: token.INT, Literal: "2", Span: newSpan(23, 3, 1)},
-		{Type: token.EOF, Literal: ``, Span: newSpan(24, 0, 0)},
+		{Type: token.COLON, Literal: ":", Span: newSpan(24, 0, 1)},
+		{Type: token.EOF, Literal: ``, Span: newSpan(25, 0, 0)},
 	}
 
 	l := New(input)

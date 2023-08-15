@@ -74,6 +74,8 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.LBRACKET, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
 	case ']':
 		tok = newToken(token.RBRACKET, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
+	case ':':
+		tok = newToken(token.COLON, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
 	case ';':
 		tok = newToken(token.SEMICOLON, l.ch, l.currentLine, l.position-l.lineByteOffset, &l.input)
 	case ',':

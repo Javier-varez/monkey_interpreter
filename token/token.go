@@ -91,6 +91,7 @@ const (
 	NOT_EQ   = "!="
 
 	COMMA      = ","
+	COLON      = ":"
 	SEMICOLON  = ";"
 	TWO_DOTS   = ".."
 	THREE_DOTS = "..."
