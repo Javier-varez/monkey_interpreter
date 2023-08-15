@@ -438,9 +438,9 @@ func (p *Parser) parseCallExpr(left ast.Expression) ast.Expression {
 }
 
 func (p *Parser) parseArrayIndexExpr(left ast.Expression) ast.Expression {
-	expr := &ast.ArrayIndexOperatorExpr{
-		ArrayExpr: left,
-		Lbracket:  p.curToken,
+	expr := &ast.IndexOperatorExpr{
+		ObjExpr:  left,
+		Lbracket: p.curToken,
 	}
 
 	p.nextToken()

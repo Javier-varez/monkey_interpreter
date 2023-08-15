@@ -114,6 +114,30 @@ var builtins map[string]object.BuiltinFunction = map[string]object.BuiltinFuncti
 
 		return &object.Array{Elems: varArgObj.Elems}
 	},
+	"contains": func(span token.Span, objects ...object.Object) object.Object {
+		if len(objects) != 2 {
+			return mkError(span, "\"contains\" builtin takes a HashMap argument and a key")
+		}
+
+		hashMapObj, ok := objects[0].(*object.HashMap)
+		if !ok {
+			return mkError(span, "First argument is not a hash map")
+		}
+
+		keyObj, ok := objects[1].(object.Hashable)
+		if !ok {
+			return mkError(span, "Second argument is not a hashable object")
+		}
+
+		elem, ok := hashMapObj.Elems[keyObj.HashKey()]
+		if ok {
+			if elem.Key.Inspect() == keyObj.Inspect() {
+				return &object.Boolean{Value: true}
+			}
+		}
+
+		return &object.Boolean{Value: false}
+	},
 }
 
 func evalAdd(leftObject, rightObject object.Object) object.Object {
@@ -526,14 +550,10 @@ func evalArrayLiteralExpr(expr *ast.ArrayLiteralExpr, env *object.Environment) o
 	return result
 }
 
-func evalArrayIndexOperatorExpr(expr *ast.ArrayIndexOperatorExpr, env *object.Environment) object.Object {
-	arrayObj := Eval(expr.ArrayExpr, env)
-	if arrayObj.Type() == object.ERROR_VALUE_OBJ {
-		return arrayObj
-	}
-
-	if arrayObj.Type() != object.ARRAY_OBJ {
-		return mkError(expr.ArrayExpr.Span(), "Expression must evaluate to an array object")
+func evalIndexOperatorExpr(expr *ast.IndexOperatorExpr, env *object.Environment) object.Object {
+	indexedObj := Eval(expr.ObjExpr, env)
+	if indexedObj.Type() == object.ERROR_VALUE_OBJ {
+		return indexedObj
 	}
 
 	indexObj := Eval(expr.IndexExpr, env)
@@ -541,18 +561,40 @@ func evalArrayIndexOperatorExpr(expr *ast.ArrayIndexOperatorExpr, env *object.En
 		return indexObj
 	}
 
-	if indexObj.Type() != object.INTEGER_OBJ {
-		return mkError(expr.IndexExpr.Span(), "Expression must evaluate to an integer object")
+	if indexedObj.Type() == object.ARRAY_OBJ {
+		if indexObj.Type() != object.INTEGER_OBJ {
+			return mkError(expr.IndexExpr.Span(), "Expression must evaluate to an integer object")
+		}
+
+		indexValue := indexObj.(*object.Integer).Value
+		elems := &indexedObj.(*object.Array).Elems
+
+		if indexValue >= int64(len(*elems)) {
+			return mkError(expr.IndexExpr.Span(), fmt.Sprintf("Index %d exceeds length of the array (%d)", indexValue, len(*elems)))
+		}
+
+		return (*elems)[indexValue]
+	} else if indexedObj.Type() == object.MAP_OBJ {
+		hashable, ok := indexObj.(object.Hashable)
+		if !ok {
+			return mkError(expr.IndexExpr.Span(), "Expression must evaluate to a hashable object")
+		}
+
+		hashKey := hashable.HashKey()
+		mapObj := indexedObj.(*object.HashMap)
+		value, ok := mapObj.Elems[hashKey]
+		if !ok {
+			return mkError(expr.Span(), fmt.Sprintf("Key %q not found", indexObj.Inspect()))
+		}
+
+		if value.Key.Inspect() != indexObj.Inspect() {
+			return mkError(expr.Span(), fmt.Sprintf("Key %q not found", indexObj.Inspect()))
+		}
+		return value.Value
 	}
 
-	indexValue := indexObj.(*object.Integer).Value
-	elems := &arrayObj.(*object.Array).Elems
+	return mkError(expr.ObjExpr.Span(), "Expression must evaluate to an array or map object")
 
-	if indexValue >= int64(len(*elems)) {
-		return mkError(expr.IndexExpr.Span(), fmt.Sprintf("Index %d exceeds length of the array (%d)", indexValue, len(*elems)))
-	}
-
-	return (*elems)[indexValue]
 }
 
 func evalVarArgsLiteralExpr(node *ast.VarArgsLiteralExpr, env *object.Environment) object.Object {
@@ -592,6 +634,39 @@ func evalRangeExpr(node *ast.RangeExpr, env *object.Environment) object.Object {
 	}
 
 	return arrayObj
+}
+
+func evalMapLiteralExpr(node *ast.MapLiteralExpr, env *object.Environment) object.Object {
+	mapObj := &object.HashMap{
+		Elems: map[object.HashKey]object.HashEntry{},
+	}
+
+	for kExpr, vExpr := range node.Map {
+		kObj := Eval(kExpr, env)
+		if kObj.Type() == object.ERROR_VALUE_OBJ {
+			return kObj
+		}
+
+		hashableK, ok := kObj.(object.Hashable)
+		if !ok {
+			return mkError(kExpr.Span(), "Expression is not hashable")
+		}
+		hashKey := hashableK.HashKey()
+
+		vObj := Eval(vExpr, env)
+		if vObj.Type() == object.ERROR_VALUE_OBJ {
+			return vObj
+		}
+
+		hashEntry := object.HashEntry{
+			Key:   kObj,
+			Value: vObj,
+		}
+
+		mapObj.Elems[hashKey] = hashEntry
+	}
+
+	return mapObj
 }
 
 func Eval(node ast.Node, env *object.Environment) object.Object {
@@ -641,14 +716,17 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.ArrayLiteralExpr:
 		return evalArrayLiteralExpr(node, env)
 
-	case *ast.ArrayIndexOperatorExpr:
-		return evalArrayIndexOperatorExpr(node, env)
+	case *ast.IndexOperatorExpr:
+		return evalIndexOperatorExpr(node, env)
 
 	case *ast.VarArgsLiteralExpr:
 		return evalVarArgsLiteralExpr(node, env)
 
 	case *ast.RangeExpr:
 		return evalRangeExpr(node, env)
+
+	case *ast.MapLiteralExpr:
+		return evalMapLiteralExpr(node, env)
 
 	default:
 		log.Fatalf("Unimplemented evaluation of node type: %T\n", node)

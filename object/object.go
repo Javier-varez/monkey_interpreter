@@ -3,6 +3,7 @@ package object
 import (
 	"bytes"
 	"fmt"
+	"hash/fnv"
 	"strings"
 
 	"github.com/javier-varez/monkey_interpreter/ast"
@@ -22,6 +23,7 @@ const (
 	BUILTIN_OBJ      = "BUILTIN"
 	ARRAY_OBJ        = "ARRAY"
 	VAR_ARGS_OBJ     = "VAR_ARGS"
+	MAP_OBJ          = "MAP"
 )
 
 type Object interface {
@@ -236,6 +238,75 @@ func (a *VarArgs) Inspect() string {
 		}
 	}
 	buffer.WriteString("]")
+
+	return buffer.String()
+}
+
+type HashKey struct {
+	Type string
+	Hash uint64
+}
+
+type Hashable interface {
+	Object
+	HashKey() HashKey
+}
+
+func (b *Boolean) HashKey() HashKey {
+	hash := uint64(0)
+	if b.Value {
+		hash = 1
+	}
+
+	return HashKey{
+		Type: BOOLEAN_OBJ,
+		Hash: hash,
+	}
+}
+
+func (i *Integer) HashKey() HashKey {
+	return HashKey{
+		Type: INTEGER_OBJ,
+		Hash: uint64(i.Value),
+	}
+}
+
+func (s *String) HashKey() HashKey {
+	h := fnv.New64()
+	h.Write([]byte(s.Value))
+	hash := h.Sum64()
+
+	return HashKey{
+		Type: STRING_OBJ,
+		Hash: hash,
+	}
+}
+
+type HashEntry struct {
+	Key   Object
+	Value Object
+	// TODO(ja): Deal with collisions. Implement chaining.
+}
+
+type HashMap struct {
+	Elems map[HashKey]HashEntry
+}
+
+func (a *HashMap) Type() ObjectType {
+	return MAP_OBJ
+}
+
+func (a *HashMap) Inspect() string {
+	var buffer bytes.Buffer
+
+	buffer.WriteString("{")
+	for _, v := range a.Elems {
+		buffer.WriteString(v.Key.Inspect())
+		buffer.WriteString(":")
+		buffer.WriteString(v.Value.Inspect())
+		buffer.WriteString(",")
+	}
+	buffer.WriteString("}")
 
 	return buffer.String()
 }

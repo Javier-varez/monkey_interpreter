@@ -23,7 +23,7 @@ let fib = fn(n) {
         return n;
     }
 
-    let state = reduce(2..(n+1), [0, 1], fn(idx, state) {
+    let state = reduce(2..n+1, [0, 1], fn(idx, state) {
         let f = state[0];
         let s = state[1];
         let next = f + s;

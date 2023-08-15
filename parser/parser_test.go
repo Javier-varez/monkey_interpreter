@@ -898,12 +898,12 @@ func TestArrayIndexOperator(t *testing.T) {
 		t.Fatalf("Statement is not an expression: %T", program.Statements[0])
 	}
 
-	arrayIndexOperatorExpr, ok := stmt.Expr.(*ast.ArrayIndexOperatorExpr)
+	arrayIndexOperatorExpr, ok := stmt.Expr.(*ast.IndexOperatorExpr)
 	if !ok {
 		t.Fatalf("Not an array index operator expression: %v", stmt.Expr)
 	}
 
-	if !testLiteralExpression(t, arrayIndexOperatorExpr.ArrayExpr, "a") {
+	if !testLiteralExpression(t, arrayIndexOperatorExpr.ObjExpr, "a") {
 		return
 	}
 

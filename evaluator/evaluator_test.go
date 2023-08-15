@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"hash/fnv"
 	"testing"
 
 	"github.com/javier-varez/monkey_interpreter/ast"
@@ -60,12 +61,52 @@ func testArrayObject(t *testing.T, obj object.Object, expected []interface{}) bo
 	}
 
 	if len(arrayObj.Elems) != len(expected) {
-		t.Errorf("Object is not an array object: %v", obj)
+		t.Errorf("Array length does not match. Expected %d, got %d", len(expected), len(arrayObj.Elems))
 		return false
 	}
 
 	for i, inner := range arrayObj.Elems {
 		if !testObject(t, inner, expected[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func testMapObject(t *testing.T, obj object.Object, expected map[string]interface{}) bool {
+	mapObj, ok := obj.(*object.HashMap)
+	if !ok {
+		t.Errorf("Object is not a map object: %v", obj)
+		return false
+	}
+
+	if len(mapObj.Elems) != len(expected) {
+		t.Errorf("Map length does not match. Expected %d, got %d", len(expected), len(mapObj.Elems))
+		return false
+	}
+
+	for expectedK, expectedV := range expected {
+		h := fnv.New64()
+		h.Write([]byte(expectedK))
+		hash := h.Sum64()
+
+		hashKey := object.HashKey{
+			Type: object.STRING_OBJ,
+			Hash: hash,
+		}
+
+		v, ok := mapObj.Elems[hashKey]
+		if !ok {
+			t.Errorf("Map does not contain entry for the expected key: %s", expectedK)
+			return false
+		}
+
+		if !testObject(t, v.Key, expectedK) {
+			return false
+		}
+
+		if !testObject(t, v.Value, expectedV) {
 			return false
 		}
 	}
@@ -95,6 +136,8 @@ func testObject(t *testing.T, obj object.Object, inner interface{}) bool {
 		return testStringObject(t, obj, inner)
 	case []interface{}:
 		return testArrayObject(t, obj, inner)
+	case map[string]interface{}:
+		return testMapObject(t, obj, inner)
 	case nil:
 		return testNullObject(t, obj)
 	default:
@@ -538,6 +581,27 @@ func TestRangeExpression(t *testing.T) {
 		{`0..5`, []interface{}{0, 1, 2, 3, 4}},
 		{`1..6`, []interface{}{1, 2, 3, 4, 5}},
 		{`let a = [2, 8]; a[0]..a[1]`, []interface{}{2, 3, 4, 5, 6, 7}},
+	}
+
+	for _, tt := range tests {
+		result := testEval(tt.input)
+		testObject(t, result, tt.expected)
+	}
+}
+
+func TestHashMapLiteral(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`{ "Hello": "hi", "world": 1, "World": 2 }`, map[string]interface{}{
+			"Hello": "hi",
+			"world": 1,
+			"World": 2,
+		}},
+		{`let a = { "Hello": "hi", "world": 1, "World": 2 }; let b = "world"; a[b]`, 1},
+		{`let a = { "Hello": "hi", "world": 1, "World": 2 }; let b = "world"; contains(a,b)`, true},
+		{`let a = { "Hello": "hi", "world": 1, "World": 2 }; let b = "worl"; contains(a,b)`, false},
 	}
 
 	for _, tt := range tests {
