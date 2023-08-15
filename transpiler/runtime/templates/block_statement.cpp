@@ -1,0 +1,1 @@
+{{range .Statements}} {{Transpile .}} {{end}}

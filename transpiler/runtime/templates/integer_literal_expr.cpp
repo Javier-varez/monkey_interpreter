@@ -1,0 +1,1 @@
+Object::makeInt({{ .Value }})

@@ -1,0 +1,1 @@
+Object::makeBool({{.Value}})
