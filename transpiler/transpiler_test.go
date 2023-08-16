@@ -200,6 +200,25 @@ func TestArrayIndexOperator(t *testing.T) {
 		{`puts([12, 20, "hi"][0])`, "12\n"},
 		{`puts([12, 20, "hi"][1])`, "20\n"},
 		{`puts([12, 20, "hi"][2])`, "hi\n"},
+		{`let a = [12, 20, "hi"]; puts(a[2])`, "hi\n"},
+	}
+	for i, tt := range test {
+		out := testTranspile(tt.input)
+		if out != tt.expectedOutput {
+			t.Errorf("[%d] Test failed. expected %q, got %q", i, tt.expectedOutput, out)
+		}
+	}
+}
+
+func TestRangeExpression(t *testing.T) {
+	test := []struct {
+		input          string
+		expectedOutput string
+	}{
+		{`puts(0..5)`, "[0, 1, 2, 3, 4]\n"},
+		{`puts(1..6)`, "[1, 2, 3, 4, 5]\n"},
+		{`puts(7..6)`, "[7]\n"},
+		{`let a = [2, 8]; puts(a[0]..a[1])`, "[2, 3, 4, 5, 6, 7]\n"},
 	}
 	for i, tt := range test {
 		out := testTranspile(tt.input)

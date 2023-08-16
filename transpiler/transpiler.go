@@ -22,22 +22,24 @@ var templates map[astNodeType]*template.Template = map[astNodeType]*template.Tem
 var preamble string
 
 const (
-	PROGRAM                    = astNodeType("PROGRAM")
-	LET_STATEMENT              = astNodeType("LET_STATEMENT")
-	EXPRESSION_STATEMENT       = astNodeType("EXPRESSION_STATEMENT")
-	IDENTIFIER_EXPRESSION      = astNodeType("IDENTIFIER_EXPRESSION")
-	INTEGER_LITERAL_EXPRESSION = astNodeType("INTEGER_LITERAL_EXPRESSION")
-	CALL_EXPRESSION            = astNodeType("CALL_EXPRESSION")
-	FN_LITERAL_EXPRESSION      = astNodeType("FN_LITERAL_EXPRESSION")
-	BLOCK_STATEMENT            = astNodeType("BLOCK_STATEMENT")
-	STRING_LITERAL_EXPRESSION  = astNodeType("STRING_LITERAL_EXPRESSION")
-	PREFIX_EXPRESSION          = astNodeType("PREFIX_EXPRESSION")
-	INFIX_EXPRESSION           = astNodeType("INFIX_EXPRESSION")
-	BOOL_LITERAL_EXPRESSION    = astNodeType("BOOL_LITERAL_EXPRESSION")
-	IF_EXPRESSION              = astNodeType("IF_EXPRESSION")
-	RETURN_STATEMENT           = astNodeType("RETURN_STATEMENT")
-	ARRAY_LITERAL_EXPRESSION   = astNodeType("ARRAY_LITERAL_EXPRESSION")
-	INDEX_OPERATOR_EXPRESSION  = astNodeType("INDEX_OPERATOR_EXPRESSION")
+	PROGRAM                     = astNodeType("PROGRAM")
+	LET_STATEMENT               = astNodeType("LET_STATEMENT")
+	EXPRESSION_STATEMENT        = astNodeType("EXPRESSION_STATEMENT")
+	IDENTIFIER_EXPRESSION       = astNodeType("IDENTIFIER_EXPRESSION")
+	INTEGER_LITERAL_EXPRESSION  = astNodeType("INTEGER_LITERAL_EXPRESSION")
+	CALL_EXPRESSION             = astNodeType("CALL_EXPRESSION")
+	FN_LITERAL_EXPRESSION       = astNodeType("FN_LITERAL_EXPRESSION")
+	BLOCK_STATEMENT             = astNodeType("BLOCK_STATEMENT")
+	STRING_LITERAL_EXPRESSION   = astNodeType("STRING_LITERAL_EXPRESSION")
+	PREFIX_EXPRESSION           = astNodeType("PREFIX_EXPRESSION")
+	INFIX_EXPRESSION            = astNodeType("INFIX_EXPRESSION")
+	BOOL_LITERAL_EXPRESSION     = astNodeType("BOOL_LITERAL_EXPRESSION")
+	IF_EXPRESSION               = astNodeType("IF_EXPRESSION")
+	RETURN_STATEMENT            = astNodeType("RETURN_STATEMENT")
+	ARRAY_LITERAL_EXPRESSION    = astNodeType("ARRAY_LITERAL_EXPRESSION")
+	INDEX_OPERATOR_EXPRESSION   = astNodeType("INDEX_OPERATOR_EXPRESSION")
+	VAR_ARGS_LITERAL_EXPRESSION = astNodeType("VAR_ARGS_LITERAL_EXPRESSION")
+	RANGE_EXPRESSION            = astNodeType("RANGE_EXPRESSION")
 )
 
 const runtimeHeaderFile string = "runtime/include/runtime.h"
@@ -77,6 +79,8 @@ func init() {
 	loadTemplate(RETURN_STATEMENT, "runtime/templates/return_statement.cpp")
 	loadTemplate(ARRAY_LITERAL_EXPRESSION, "runtime/templates/array_literal_expr.cpp")
 	loadTemplate(INDEX_OPERATOR_EXPRESSION, "runtime/templates/index_operator_expr.cpp")
+	loadTemplate(VAR_ARGS_LITERAL_EXPRESSION, "runtime/templates/var_args_literal_expr.cpp")
+	loadTemplate(RANGE_EXPRESSION, "runtime/templates/range_expr.cpp")
 }
 
 var indent int = 0
@@ -132,7 +136,7 @@ func Compile(program string) string {
 
 	file.Close()
 
-	cmd := exec.Command("c++", "-std=c++20", "-Wall", "-Werror", "-o", compiledFileName, fileName)
+	cmd := exec.Command("c++", "-O3", "-std=c++20", "-Wall", "-Werror", "-o", compiledFileName, fileName)
 	log.Printf("Running command %q\n", cmd.String())
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
@@ -187,6 +191,10 @@ func transpileInner(node ast.Node) string {
 		return execTemplate(ARRAY_LITERAL_EXPRESSION, node)
 	case *ast.IndexOperatorExpr:
 		return execTemplate(INDEX_OPERATOR_EXPRESSION, node)
+	case *ast.VarArgsLiteralExpr:
+		return execTemplate(VAR_ARGS_LITERAL_EXPRESSION, node)
+	case *ast.RangeExpr:
+		return execTemplate(RANGE_EXPRESSION, node)
 	default:
 		log.Fatalf("Unsupported node type: %T\n", node)
 	}

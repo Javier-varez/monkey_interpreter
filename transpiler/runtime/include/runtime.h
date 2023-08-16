@@ -1,4 +1,6 @@
-#include <cstdarg>
+#ifndef _MONKEY_RUNTIME_H_
+#define _MONKEY_RUNTIME_H_
+
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
@@ -40,6 +42,7 @@ enum class ObjectType {
   STRING,
   FUNCTION,
   ARRAY,
+  VARARGS,
   MAP,
 };
 
@@ -47,17 +50,52 @@ struct Object;
 
 template <typename T, T> struct ConstexprLit {};
 
+class FnArgs {
+public:
+  template<std::same_as<Object>... Args>
+  explicit FnArgs(const Args... args) noexcept;
+
+  inline size_t len() const noexcept;
+
+  inline Object operator[](size_t idx) const noexcept;
+
+  using Iterator = std::vector<Object>::const_iterator;
+
+  inline Iterator begin() const noexcept;
+  inline Iterator end() const noexcept;
+
+private:
+  std::shared_ptr<std::vector<Object>> args;
+};
+
+class VarArgs {
+public:
+  using Iterator = std::vector<Object>::const_iterator;
+
+  inline VarArgs(Iterator begin, Iterator end) noexcept;
+
+  inline size_t len() const noexcept;
+
+  inline Object operator[](size_t idx) const noexcept;
+
+  inline Iterator begin() const noexcept;
+  inline Iterator end() const noexcept;
+
+private:
+  std::shared_ptr<std::vector<Object>> args;
+};
+
 class Function final {
 private:
   struct Callable {
-    virtual Object vcall(size_t count, va_list arg) const noexcept = 0;
+    virtual Object call(const FnArgs args) const noexcept = 0;
   };
 
   template <typename T, size_t NumArgs, bool HasVarArgs>
   struct CallableImpl final : public Callable {
     CallableImpl(T callable) : callable{callable} {}
 
-    Object vcall(size_t count, va_list arg) const noexcept final;
+    Object call(const FnArgs args) const noexcept final;
 
     T callable;
   };
@@ -69,7 +107,7 @@ public:
       : callable{
             std::make_shared<CallableImpl<T, NumArgs, HasVarArgs>>(callable)} {}
 
-  inline Object operator()(size_t count, ...) const noexcept;
+  inline Object operator()(const FnArgs args) const noexcept;
 
 private:
   std::shared_ptr<Callable> callable;
@@ -79,6 +117,8 @@ class Array {
 public:
   template<typename... Args>
   explicit Array(Args&&...args) noexcept;
+
+  static Array makeRange(int64_t start, int64_t end)noexcept;
 
   inline Object operator[](Object index) const noexcept;
 
@@ -108,6 +148,8 @@ objectTypeToString(const ObjectType type) {
     return "function"sv;
   case ARRAY:
     return "array"sv;
+  case VARARGS:
+    return "varargs"sv;
   case MAP:
     return "map"sv;
   }
@@ -120,9 +162,9 @@ struct Object final {
   struct Nil {};
 
   ObjectType type{ObjectType::NIL};
-  // TODO: Array object
+
   // TODO: Map object
-  std::variant<Nil, int64_t, bool, std::string, Function, Array> val{Nil{}};
+  std::variant<Nil, int64_t, bool, std::string, Function, Array, VarArgs> val{Nil{}};
 
   inline static Object makeInt(const int64_t val) noexcept {
     return Object{
@@ -159,6 +201,13 @@ struct Object final {
     };
   }
 
+  inline static Object makeVarargs(const VarArgs v) noexcept {
+    return Object{
+        .type = ObjectType::VARARGS,
+        .val{v},
+    };
+  }
+
   inline int64_t getInteger() const noexcept {
     check(type == ObjectType::INTEGER,
           "Attempted to unwrap integer but object type was `"sv,
@@ -185,6 +234,13 @@ struct Object final {
           "Attempted to unwrap array but object type was `"sv,
           objectTypeToString(type), '`');
     return std::get<Array>(val);
+  }
+
+  inline VarArgs getVarArgs() const noexcept {
+    check(type == ObjectType::VARARGS,
+          "Attempted to unwrap varargs but object type was `"sv,
+          objectTypeToString(type), '`');
+    return std::get<VarArgs>(val);
   }
 
   [[nodiscard]] inline std::string inspect() const noexcept;
@@ -222,7 +278,23 @@ struct Object final {
       bool firstIter = true;
       for (const Object& obj : val) {
         if (!firstIter) {
-          stream << ", ";
+          stream << ", "sv;
+        } else {
+          firstIter = false;
+        }
+        stream << obj.inspect();
+      }
+      stream << ']';
+      return stream.str();
+    }
+
+    [[nodiscard]] std::string operator()(const VarArgs &val) noexcept {
+      std::ostringstream stream;
+      stream << "VarArgs["sv;
+      bool firstIter = true;
+      for (const Object& obj : val) {
+        if (!firstIter) {
+          stream << ", "sv;
         } else {
           firstIter = false;
         }
@@ -336,7 +408,7 @@ inline Object operator>(const Object &lhs, const Object &rhs) noexcept {
 template <typename... Args>
 inline Object Object::operator()(const Args &...args) const noexcept {
   const Function f = std::get<Function>(val);
-  return f(sizeof...(Args), &args...);
+  return f(FnArgs{args...});
 }
 
 inline Object Object::operator-() const noexcept {
@@ -357,34 +429,44 @@ inline Object Object::operator[](Object index) const noexcept {
   fatal("Attempted to use index operator on an unsupported object: "sv, objectTypeToString(type));
 }
 
-Object Function::operator()(size_t count, ...) const noexcept {
-  va_list args;
-  va_start(args, count);
-  const auto result = callable->vcall(count, args);
-  va_end(args);
+Object Function::operator()(const FnArgs args) const noexcept {
+  const auto result = callable->call(args);
   return result;
 }
 
 template <size_t NumArgs, typename C, typename... Args>
-auto expandAndCall(va_list arg, C &&callable, Args... args) {
+auto expandAndCall(const FnArgs::Iterator argIter, C &&callable, Args... args) {
   if constexpr (NumArgs == 0) {
     return callable(std::forward<Args>(args)...);
   } else {
-    const auto next = *va_arg(arg, Object *);
-    return expandAndCall<NumArgs - 1>(arg, std::forward<C>(callable), args...,
-                                      next);
+    const auto nextIter = argIter+1;
+    return expandAndCall<NumArgs - 1>(nextIter, std::forward<C>(callable), args...,
+                                      *argIter);
+  }
+}
+
+template <size_t NumArgs, typename C, typename... Args>
+auto expandAndCallWithVarArgs(const FnArgs::Iterator argIter, const FnArgs::Iterator argIterEnd, C &&callable, Args... args) {
+  if constexpr (NumArgs == 0) {
+    const Object varArgs {Object::makeVarargs(VarArgs{argIter, argIterEnd})};
+    return callable(std::forward<Args>(args)..., varArgs);
+  } else {
+    const auto nextIter = argIter+1;
+    return expandAndCallWithVarArgs<NumArgs - 1>(nextIter, argIterEnd, std::forward<C>(callable), args...,
+                                                 *argIter);
   }
 }
 
 template <typename T, size_t NumArgs, bool HasVarArgs>
-Object Function::CallableImpl<T, NumArgs, HasVarArgs>::vcall(
-    size_t count, va_list arg) const noexcept {
+Object Function::CallableImpl<T, NumArgs, HasVarArgs>::call(const FnArgs args) const noexcept {
   if constexpr (!HasVarArgs) {
-    check(count == NumArgs, "Callable takes "sv, NumArgs, " arguments, but "sv,
-          count, " were given");
-    return expandAndCall<NumArgs>(arg, callable);
+    check(args.len() == NumArgs, "Callable takes "sv, NumArgs, " arguments, but "sv,
+          args.len(), " were given");
+    return expandAndCall<NumArgs>(args.begin(), callable);
   } else {
-    fatal("VarArgs are not implemented yet"sv);
+    check(args.len() >= NumArgs, "Callable takes at least "sv, NumArgs, " arguments, but only "sv,
+          args.len(), " were given");
+    return expandAndCallWithVarArgs<NumArgs>(args.begin(), args.end(), callable);
   }
 }
 
@@ -408,11 +490,110 @@ Array::Iterator Array::end() const noexcept{
   return (*data).cend();
 }
 
+Array Array::makeRange(int64_t start, int64_t end)noexcept {
+  Array a;
+  const auto abs = [](auto arg) {
+    if (arg < 0) return -arg;
+    return arg;
+  };
+  a.data->reserve(abs(end - start));
+  if (start > end) {
+    for (int64_t i = start; i > end; i--) {
+      a.data->push_back(Object::makeInt(i));
+    }
+  } else {
+    for (int64_t i = start; i < end; i++) {
+      a.data->push_back(Object::makeInt(i));
+    }
+  }
+  return a;
+}
+
+template<std::same_as<Object>... Args>
+FnArgs::FnArgs(const Args... args) noexcept : args(std::make_shared<std::vector<Object>>()){
+  const auto handleArg = [this]<typename T>(const T arg) {
+    static_assert(std::same_as<T, Object>, "Invalid arg type");
+    if (arg.type == ObjectType::VARARGS) {
+      // Varargs are unwrapped here in the call site
+      for (const Object &inner : arg.getVarArgs()) {
+        this->args->push_back(inner);
+      }
+    } else {
+      this->args->push_back(arg);
+    }
+  };
+
+  (handleArg(args), ...);
+}
+
+size_t FnArgs::len() const noexcept {
+  return args->size();
+}
+
+Object FnArgs::operator[](size_t idx) const noexcept {
+  check(idx < args->size(), "Out of bounds index to FnArgs object"sv);
+  return (*args)[idx];
+}
+
+FnArgs::Iterator FnArgs::begin() const noexcept {
+  return args->cbegin();
+}
+FnArgs::Iterator FnArgs::end() const noexcept {
+  return args->cend();
+}
+
+inline VarArgs::VarArgs(const Iterator begin, const Iterator end) noexcept : args(std::make_shared<std::vector<Object>>()){
+  Iterator next= begin;
+  while (next < end) {
+    args->push_back(*next);
+    next++;
+  }
+}
+
+inline size_t VarArgs::len() const noexcept {
+  return args->size();
+}
+
+inline Object VarArgs::operator[](size_t idx) const noexcept {
+  return (*args)[idx];
+}
+
+inline VarArgs::Iterator VarArgs::begin() const noexcept {
+  return args->cbegin();
+}
+
+inline VarArgs::Iterator VarArgs::end() const noexcept{
+  return args->cend();
+}
+
+inline Object rangeExprToArray(const Object start, const Object end) noexcept {
+  check(start.type == ObjectType::INTEGER &&end.type == ObjectType::INTEGER,
+        "Cannot construct range expression from arguments of type "sv, objectTypeToString(start.type),
+        " and "sv, objectTypeToString(end.type));
+
+  return Object::makeArray(Array::makeRange(start.getInteger(), end.getInteger()));
+}
+
 template <typename... Args> Object puts(Args &&...args) noexcept {
-  const auto print = []<typename T>(T &&arg) { std::cout << arg.inspect(); };
-  (print(std::forward<Args>(args)), ...);
+  const auto print = []<typename T>(T &&arg) {
+    std::cout << arg.inspect();
+  };
+
+  const auto expandVarArgs = []<typename C, typename T>(C callable, T&& arg) {
+    if (arg.type == ObjectType::VARARGS) {
+      for (const Object& inner: arg.getVarArgs()) {
+        callable(inner);
+      }
+    } else {
+        callable(arg);
+    }
+  };
+
+  (expandVarArgs(print, std::forward<Args>(args)), ...);
   std::cout << '\n';
   return Object{};
 }
 
 } // namespace runtime
+
+#endif  // _MONKEY_RUNTIME_H_

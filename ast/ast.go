@@ -433,7 +433,6 @@ func (expr *VarArgsLiteralExpr) String() string {
 type RangeExpr struct {
 	StartExpr, EndExpr Expression
 	DotsToken          token.Token
-	Start, End         int64
 }
 
 func (expr *RangeExpr) expressionNode() {}
