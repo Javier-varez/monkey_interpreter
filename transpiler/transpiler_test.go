@@ -248,3 +248,22 @@ func TestFunctionVarArgs(t *testing.T) {
 		}
 	}
 }
+
+func TestArrayBuiltins(t *testing.T) {
+	test := []struct {
+		input          string
+		expectedOutput string
+	}{
+		{`puts(first([123, 234, "hello"]))`, "123\n"},
+		{`puts(last([123, 234, "hello"]))`, "hello\n"},
+		{`puts(rest([123, 234, "hello"]))`, "[234, hello]\n"},
+		{`puts(push(["hello"], "world"))`, "[hello, world]\n"},
+	}
+
+	for i, tt := range test {
+		out := testTranspile(tt.input)
+		if out != tt.expectedOutput {
+			t.Errorf("[%d] Test failed. expected %q, got %q", i, tt.expectedOutput, out)
+		}
+	}
+}

@@ -125,12 +125,14 @@ public:
   inline static Array makeFromRange(int64_t start, int64_t end)noexcept;
   inline static Array makeFromIters(Iterator begin, Iterator end)noexcept;
 
-  inline Object operator[](Object index) const noexcept;
+  inline Object operator[](size_t index) const noexcept;
 
-  inline Object len() const noexcept;
+  inline size_t len() const noexcept;
 
   inline Iterator begin() const noexcept;
   inline Iterator end() const noexcept;
+
+  inline void push(Object obj) noexcept;
 
 private:
   std::shared_ptr<std::vector<Object>> data;
@@ -427,7 +429,8 @@ inline Object Object::operator!() const noexcept {
 
 inline Object Object::operator[](Object index) const noexcept {
   if (type == ObjectType::ARRAY) {
-    return getArray()[index];
+    check(index.type == ObjectType::INTEGER, "Index to array is not an integer"sv);
+    return getArray()[index.getInteger()];
   }
 
   fatal("Attempted to use index operator on an unsupported object: "sv, objectTypeToString(type));
@@ -479,13 +482,13 @@ Array::Array() noexcept : data{std::make_shared<std::vector<Object>>()} {}
 template<typename... Args>
 Array::Array(Args&&...args) noexcept : data{std::make_shared<std::vector<Object>>(std::vector<Object>{args...})} {}
 
-Object Array::operator[](Object index) const noexcept {
-  check(index.type == ObjectType::INTEGER, "Attempted to index an array with an object of type "sv, objectTypeToString(index.type));
-  return (*data)[index.getInteger()];
+Object Array::operator[](size_t index) const noexcept {
+  check(index < len(), "Out of bounds access to array.");
+  return (*data)[index];
 }
 
-Object Array::len() const noexcept {
-  return Object::makeInt((*data).size());
+size_t Array::len() const noexcept {
+  return (*data).size();
 }
 
 Array::Iterator Array::begin() const noexcept{
@@ -528,6 +531,10 @@ Array Array::makeFromIters(Iterator begin, Iterator end)noexcept {
   }
 
   return a;
+}
+
+void Array::push(const Object newObj) noexcept {
+  data->push_back(newObj);
 }
 
 template<std::same_as<Object>... Args>
@@ -626,7 +633,43 @@ inline Object len(Object object) noexcept {
   check(object.type == ObjectType::ARRAY, "Unsupported object passed to len: "sv, objectTypeToString(object.type));
 
   const Array arr = object.getArray();
-  return arr.len();
+  return Object::makeInt(arr.len());
+}
+
+inline Object first(Object object) noexcept {
+  check(object.type == ObjectType::ARRAY, "Unsupported object passed to first: "sv, objectTypeToString(object.type));
+
+  const Array arr = object.getArray();
+  const size_t length = arr.len();
+  check(length >= 1, "Array does not have any items. Unable to get first item"sv, objectTypeToString(object.type));
+  return arr[0];
+}
+
+inline Object last(Object object) noexcept {
+  check(object.type == ObjectType::ARRAY, "Unsupported object passed to first: "sv, objectTypeToString(object.type));
+
+  const Array arr = object.getArray();
+  const size_t length = arr.len();
+  check(length >= 1, "Array does not have any items. Unable to get last item"sv, objectTypeToString(object.type));
+  return arr[length-1];
+}
+
+inline Object rest(Object object) noexcept {
+  check(object.type == ObjectType::ARRAY, "Unsupported object passed to first: "sv, objectTypeToString(object.type));
+
+  const Array arr = object.getArray();
+  const size_t length = arr.len();
+  check(length >= 1, "Array does not have any items, rest may not be called"sv, objectTypeToString(object.type));
+  return Object::makeArray(Array::makeFromIters(arr.begin()+1, arr.end()));
+}
+
+inline Object push(Object object, Object newObj) noexcept {
+  check(object.type == ObjectType::ARRAY, "Unsupported object passed to first: "sv, objectTypeToString(object.type));
+
+  const auto arr = object.getArray();
+  auto newArray = Array::makeFromIters(arr.begin(), arr.end());
+  newArray.push(newObj);
+  return Object::makeArray(newArray);
 }
 
 } // namespace runtime
