@@ -11,8 +11,8 @@ let reduce = fn(arr, initial, callable) {
         };
 
         let obj = first(arr);
-        let acc = callable(obj, acc);
-        return self(self, rest(arr), acc);
+        let newAcc = callable(obj, acc);
+        return self(self, rest(arr), newAcc);
     });
 
     return iter(arr, initial);

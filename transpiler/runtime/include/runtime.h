@@ -52,7 +52,7 @@ template <typename T, T> struct ConstexprLit {};
 
 class FnArgs {
 public:
-  template<std::same_as<Object>... Args>
+  template <std::same_as<Object>... Args>
   explicit FnArgs(const Args... args) noexcept;
 
   inline size_t len() const noexcept;
@@ -119,11 +119,10 @@ public:
 
   inline Array() noexcept;
 
-  template<typename... Args>
-  explicit Array(Args&&...args) noexcept;
+  template <typename... Args> explicit Array(Args &&...args) noexcept;
 
-  inline static Array makeFromRange(int64_t start, int64_t end)noexcept;
-  inline static Array makeFromIters(Iterator begin, Iterator end)noexcept;
+  inline static Array makeFromRange(int64_t start, int64_t end) noexcept;
+  inline static Array makeFromIters(Iterator begin, Iterator end) noexcept;
 
   inline Object operator[](size_t index) const noexcept;
 
@@ -170,7 +169,8 @@ struct Object final {
   ObjectType type{ObjectType::NIL};
 
   // TODO: Map object
-  std::variant<Nil, int64_t, bool, std::string, Function, Array, VarArgs> val{Nil{}};
+  std::variant<Nil, int64_t, bool, std::string, Function, Array, VarArgs> val{
+      Nil{}};
 
   inline static Object makeInt(const int64_t val) noexcept {
     return Object{
@@ -282,7 +282,7 @@ struct Object final {
       std::ostringstream stream;
       stream << '[';
       bool firstIter = true;
-      for (const Object& obj : val) {
+      for (const Object &obj : val) {
         if (!firstIter) {
           stream << ", "sv;
         } else {
@@ -298,7 +298,7 @@ struct Object final {
       std::ostringstream stream;
       stream << "VarArgs["sv;
       bool firstIter = true;
-      for (const Object& obj : val) {
+      for (const Object &obj : val) {
         if (!firstIter) {
           stream << ", "sv;
         } else {
@@ -370,7 +370,8 @@ inline Object operator/(const Object &lhs, const Object &rhs) noexcept {
 inline Object operator==(const Object &lhs, const Object &rhs) noexcept {
   if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
     return Object::makeBool(lhs.getInteger() == rhs.getInteger());
-  } else if (lhs.type == ObjectType::BOOLEAN && rhs.type == ObjectType::BOOLEAN) {
+  } else if (lhs.type == ObjectType::BOOLEAN &&
+             rhs.type == ObjectType::BOOLEAN) {
     return Object::makeBool(lhs.getBool() == rhs.getBool());
   }
 
@@ -382,7 +383,8 @@ inline Object operator==(const Object &lhs, const Object &rhs) noexcept {
 inline Object operator!=(const Object &lhs, const Object &rhs) noexcept {
   if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
     return Object::makeBool(lhs.getInteger() != rhs.getInteger());
-  } else if (lhs.type == ObjectType::BOOLEAN && rhs.type == ObjectType::BOOLEAN) {
+  } else if (lhs.type == ObjectType::BOOLEAN &&
+             rhs.type == ObjectType::BOOLEAN) {
     return Object::makeBool(lhs.getBool() != rhs.getBool());
   }
 
@@ -418,22 +420,28 @@ inline Object Object::operator()(const Args &...args) const noexcept {
 }
 
 inline Object Object::operator-() const noexcept {
-  check(type == ObjectType::INTEGER, "Attempted to execute prefix operator '-' on a "sv, objectTypeToString(type));
+  check(type == ObjectType::INTEGER,
+        "Attempted to execute prefix operator '-' on a "sv,
+        objectTypeToString(type));
   return Object::makeInt(-getInteger());
 }
 
 inline Object Object::operator!() const noexcept {
-  check(type == ObjectType::BOOLEAN, "Attempted to execute prefix operator '!' on a "sv, objectTypeToString(type));
+  check(type == ObjectType::BOOLEAN,
+        "Attempted to execute prefix operator '!' on a "sv,
+        objectTypeToString(type));
   return Object::makeBool(!getBool());
 }
 
 inline Object Object::operator[](Object index) const noexcept {
   if (type == ObjectType::ARRAY) {
-    check(index.type == ObjectType::INTEGER, "Index to array is not an integer"sv);
+    check(index.type == ObjectType::INTEGER,
+          "Index to array is not an integer"sv);
     return getArray()[index.getInteger()];
   }
 
-  fatal("Attempted to use index operator on an unsupported object: "sv, objectTypeToString(type));
+  fatal("Attempted to use index operator on an unsupported object: "sv,
+        objectTypeToString(type));
 }
 
 Object Function::operator()(const FnArgs args) const noexcept {
@@ -446,63 +454,64 @@ auto expandAndCall(const FnArgs::Iterator argIter, C &&callable, Args... args) {
   if constexpr (NumArgs == 0) {
     return callable(std::forward<Args>(args)...);
   } else {
-    const auto nextIter = argIter+1;
-    return expandAndCall<NumArgs - 1>(nextIter, std::forward<C>(callable), args...,
-                                      *argIter);
+    const auto nextIter = argIter + 1;
+    return expandAndCall<NumArgs - 1>(nextIter, std::forward<C>(callable),
+                                      args..., *argIter);
   }
 }
 
 template <size_t NumArgs, typename C, typename... Args>
-auto expandAndCallWithVarArgs(const FnArgs::Iterator argIter, const FnArgs::Iterator argIterEnd, C &&callable, Args... args) {
+auto expandAndCallWithVarArgs(const FnArgs::Iterator argIter,
+                              const FnArgs::Iterator argIterEnd, C &&callable,
+                              Args... args) {
   if constexpr (NumArgs == 0) {
-    const Object varArgs {Object::makeVarargs(VarArgs{argIter, argIterEnd})};
+    const Object varArgs{Object::makeVarargs(VarArgs{argIter, argIterEnd})};
     return callable(std::forward<Args>(args)..., varArgs);
   } else {
-    const auto nextIter = argIter+1;
-    return expandAndCallWithVarArgs<NumArgs - 1>(nextIter, argIterEnd, std::forward<C>(callable), args...,
-                                                 *argIter);
+    const auto nextIter = argIter + 1;
+    return expandAndCallWithVarArgs<NumArgs - 1>(
+        nextIter, argIterEnd, std::forward<C>(callable), args..., *argIter);
   }
 }
 
 template <typename T, size_t NumArgs, bool HasVarArgs>
-Object Function::CallableImpl<T, NumArgs, HasVarArgs>::call(const FnArgs args) const noexcept {
+Object Function::CallableImpl<T, NumArgs, HasVarArgs>::call(
+    const FnArgs args) const noexcept {
   if constexpr (!HasVarArgs) {
-    check(args.len() == NumArgs, "Callable takes "sv, NumArgs, " arguments, but "sv,
-          args.len(), " were given");
+    check(args.len() == NumArgs, "Callable takes "sv, NumArgs,
+          " arguments, but "sv, args.len(), " were given");
     return expandAndCall<NumArgs>(args.begin(), callable);
   } else {
-    check(args.len() >= NumArgs, "Callable takes at least "sv, NumArgs, " arguments, but only "sv,
-          args.len(), " were given");
-    return expandAndCallWithVarArgs<NumArgs>(args.begin(), args.end(), callable);
+    check(args.len() >= NumArgs, "Callable takes at least "sv, NumArgs,
+          " arguments, but only "sv, args.len(), " were given");
+    return expandAndCallWithVarArgs<NumArgs>(args.begin(), args.end(),
+                                             callable);
   }
 }
 
 Array::Array() noexcept : data{std::make_shared<std::vector<Object>>()} {}
 
-template<typename... Args>
-Array::Array(Args&&...args) noexcept : data{std::make_shared<std::vector<Object>>(std::vector<Object>{args...})} {}
+template <typename... Args>
+Array::Array(Args &&...args) noexcept
+    : data{std::make_shared<std::vector<Object>>(
+          std::vector<Object>{args...})} {}
 
 Object Array::operator[](size_t index) const noexcept {
   check(index < len(), "Out of bounds access to array.");
   return (*data)[index];
 }
 
-size_t Array::len() const noexcept {
-  return (*data).size();
-}
+size_t Array::len() const noexcept { return (*data).size(); }
 
-Array::Iterator Array::begin() const noexcept{
-  return (*data).cbegin();
-}
+Array::Iterator Array::begin() const noexcept { return (*data).cbegin(); }
 
-Array::Iterator Array::end() const noexcept{
-  return (*data).cend();
-}
+Array::Iterator Array::end() const noexcept { return (*data).cend(); }
 
 Array Array::makeFromRange(int64_t start, int64_t end) noexcept {
   Array a{};
   const auto abs = [](auto arg) {
-    if (arg < 0) return -arg;
+    if (arg < 0)
+      return -arg;
     return arg;
   };
 
@@ -520,7 +529,7 @@ Array Array::makeFromRange(int64_t start, int64_t end) noexcept {
   return a;
 }
 
-Array Array::makeFromIters(Iterator begin, Iterator end)noexcept {
+Array Array::makeFromIters(Iterator begin, Iterator end) noexcept {
   Array a{};
   a.data->reserve(end - begin);
 
@@ -533,12 +542,11 @@ Array Array::makeFromIters(Iterator begin, Iterator end)noexcept {
   return a;
 }
 
-void Array::push(const Object newObj) noexcept {
-  data->push_back(newObj);
-}
+void Array::push(const Object newObj) noexcept { data->push_back(newObj); }
 
-template<std::same_as<Object>... Args>
-FnArgs::FnArgs(const Args... args) noexcept : args(std::make_shared<std::vector<Object>>()){
+template <std::same_as<Object>... Args>
+FnArgs::FnArgs(const Args... args) noexcept
+    : args(std::make_shared<std::vector<Object>>()) {
   const auto handleArg = [this]<typename T>(const T arg) {
     static_assert(std::same_as<T, Object>, "Invalid arg type");
     if (arg.type == ObjectType::VARARGS) {
@@ -554,33 +562,26 @@ FnArgs::FnArgs(const Args... args) noexcept : args(std::make_shared<std::vector<
   (handleArg(args), ...);
 }
 
-size_t FnArgs::len() const noexcept {
-  return args->size();
-}
+size_t FnArgs::len() const noexcept { return args->size(); }
 
 Object FnArgs::operator[](size_t idx) const noexcept {
   check(idx < args->size(), "Out of bounds index to FnArgs object"sv);
   return (*args)[idx];
 }
 
-FnArgs::Iterator FnArgs::begin() const noexcept {
-  return args->cbegin();
-}
-FnArgs::Iterator FnArgs::end() const noexcept {
-  return args->cend();
-}
+FnArgs::Iterator FnArgs::begin() const noexcept { return args->cbegin(); }
+FnArgs::Iterator FnArgs::end() const noexcept { return args->cend(); }
 
-inline VarArgs::VarArgs(const Iterator begin, const Iterator end) noexcept : args(std::make_shared<std::vector<Object>>()){
-  Iterator next= begin;
+inline VarArgs::VarArgs(const Iterator begin, const Iterator end) noexcept
+    : args(std::make_shared<std::vector<Object>>()) {
+  Iterator next = begin;
   while (next < end) {
     args->push_back(*next);
     next++;
   }
 }
 
-inline size_t VarArgs::len() const noexcept {
-  return args->size();
-}
+inline size_t VarArgs::len() const noexcept { return args->size(); }
 
 inline Object VarArgs::operator[](size_t idx) const noexcept {
   return (*args)[idx];
@@ -590,30 +591,28 @@ inline VarArgs::Iterator VarArgs::begin() const noexcept {
   return args->cbegin();
 }
 
-inline VarArgs::Iterator VarArgs::end() const noexcept{
-  return args->cend();
-}
+inline VarArgs::Iterator VarArgs::end() const noexcept { return args->cend(); }
 
 inline Object rangeExprToArray(const Object start, const Object end) noexcept {
-  check(start.type == ObjectType::INTEGER &&end.type == ObjectType::INTEGER,
-        "Cannot construct range expression from arguments of type "sv, objectTypeToString(start.type),
-        " and "sv, objectTypeToString(end.type));
+  check(start.type == ObjectType::INTEGER && end.type == ObjectType::INTEGER,
+        "Cannot construct range expression from arguments of type "sv,
+        objectTypeToString(start.type), " and "sv,
+        objectTypeToString(end.type));
 
-  return Object::makeArray(Array::makeFromRange(start.getInteger(), end.getInteger()));
+  return Object::makeArray(
+      Array::makeFromRange(start.getInteger(), end.getInteger()));
 }
 
 template <typename... Args> Object puts(Args &&...args) noexcept {
-  const auto print = []<typename T>(T &&arg) {
-    std::cout << arg.inspect();
-  };
+  const auto print = []<typename T>(T &&arg) { std::cout << arg.inspect(); };
 
-  const auto expandVarArgs = []<typename C, typename T>(C callable, T&& arg) {
+  const auto expandVarArgs = []<typename C, typename T>(C callable, T &&arg) {
     if (arg.type == ObjectType::VARARGS) {
-      for (const Object& inner: arg.getVarArgs()) {
+      for (const Object &inner : arg.getVarArgs()) {
         callable(inner);
       }
     } else {
-        callable(arg);
+      callable(arg);
     }
   };
 
@@ -623,48 +622,64 @@ template <typename... Args> Object puts(Args &&...args) noexcept {
 }
 
 inline Object toArray(Object object) noexcept {
-  check(object.type == ObjectType::VARARGS, "Unsupported object passed to toArray: "sv, objectTypeToString(object.type));
+  check(object.type == ObjectType::VARARGS,
+        "Unsupported object passed to toArray: "sv,
+        objectTypeToString(object.type));
 
   const VarArgs varargs = object.getVarArgs();
   return object.makeArray(Array::makeFromIters(varargs.begin(), varargs.end()));
 }
 
 inline Object len(Object object) noexcept {
-  check(object.type == ObjectType::ARRAY, "Unsupported object passed to len: "sv, objectTypeToString(object.type));
+  check(object.type == ObjectType::ARRAY,
+        "Unsupported object passed to len: "sv,
+        objectTypeToString(object.type));
 
   const Array arr = object.getArray();
   return Object::makeInt(arr.len());
 }
 
 inline Object first(Object object) noexcept {
-  check(object.type == ObjectType::ARRAY, "Unsupported object passed to first: "sv, objectTypeToString(object.type));
+  check(object.type == ObjectType::ARRAY,
+        "Unsupported object passed to first: "sv,
+        objectTypeToString(object.type));
 
   const Array arr = object.getArray();
   const size_t length = arr.len();
-  check(length >= 1, "Array does not have any items. Unable to get first item"sv, objectTypeToString(object.type));
+  check(length >= 1,
+        "Array does not have any items. Unable to get first item"sv,
+        objectTypeToString(object.type));
   return arr[0];
 }
 
 inline Object last(Object object) noexcept {
-  check(object.type == ObjectType::ARRAY, "Unsupported object passed to first: "sv, objectTypeToString(object.type));
+  check(object.type == ObjectType::ARRAY,
+        "Unsupported object passed to first: "sv,
+        objectTypeToString(object.type));
 
   const Array arr = object.getArray();
   const size_t length = arr.len();
-  check(length >= 1, "Array does not have any items. Unable to get last item"sv, objectTypeToString(object.type));
-  return arr[length-1];
+  check(length >= 1, "Array does not have any items. Unable to get last item"sv,
+        objectTypeToString(object.type));
+  return arr[length - 1];
 }
 
 inline Object rest(Object object) noexcept {
-  check(object.type == ObjectType::ARRAY, "Unsupported object passed to first: "sv, objectTypeToString(object.type));
+  check(object.type == ObjectType::ARRAY,
+        "Unsupported object passed to first: "sv,
+        objectTypeToString(object.type));
 
   const Array arr = object.getArray();
   const size_t length = arr.len();
-  check(length >= 1, "Array does not have any items, rest may not be called"sv, objectTypeToString(object.type));
-  return Object::makeArray(Array::makeFromIters(arr.begin()+1, arr.end()));
+  check(length >= 1, "Array does not have any items, rest may not be called"sv,
+        objectTypeToString(object.type));
+  return Object::makeArray(Array::makeFromIters(arr.begin() + 1, arr.end()));
 }
 
 inline Object push(Object object, Object newObj) noexcept {
-  check(object.type == ObjectType::ARRAY, "Unsupported object passed to first: "sv, objectTypeToString(object.type));
+  check(object.type == ObjectType::ARRAY,
+        "Unsupported object passed to first: "sv,
+        objectTypeToString(object.type));
 
   const auto arr = object.getArray();
   auto newArray = Array::makeFromIters(arr.begin(), arr.end());
@@ -674,4 +689,4 @@ inline Object push(Object object, Object newObj) noexcept {
 
 } // namespace runtime
 
-#endif  // _MONKEY_RUNTIME_H_
+#endif // _MONKEY_RUNTIME_H_
