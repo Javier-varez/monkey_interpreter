@@ -227,3 +227,24 @@ func TestRangeExpression(t *testing.T) {
 		}
 	}
 }
+
+func TestFunctionVarArgs(t *testing.T) {
+	test := []struct {
+		input          string
+		expectedOutput string
+	}{
+		{`puts(fn(a, ...) { let v = toArray(...); len(v) + a }(12, 1, 2, 3, 4))`, "16\n"},
+		{`puts(fn(a, ...) { fn(a, b, c, d) { return a + b + c + d }(a, ...) }(1, 2, 3, 4))`, "10\n"},
+		{`puts(fn(a, ...) { fn(a, b, c, d, ...) { return len(toArray(...)) }(a, ...) }(1, 2, 3, 4))`, "0\n"},
+		{`puts(fn(a, ...) { fn(a, b, c, d, ...) { return len(toArray(...)) }(a, ...) }(1, 2, 3, 4, 5))`, "1\n"},
+		{`puts(fn(a, ...) { fn(a, ...) { return len(toArray(...)) }(a, toArray(...)) }(1, 2, 3, 4, 5))`, "1\n"},
+		{`puts(fn(a, ...) { fn(a, ...) { return len(toArray(...)[0]) }(a, toArray(...)) }(1, 2, 3, 4, 5))`, "4\n"},
+	}
+
+	for i, tt := range test {
+		out := testTranspile(tt.input)
+		if out != tt.expectedOutput {
+			t.Errorf("[%d] Test failed. expected %q, got %q", i, tt.expectedOutput, out)
+		}
+	}
+}

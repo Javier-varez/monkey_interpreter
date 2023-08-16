@@ -115,16 +115,20 @@ private:
 
 class Array {
 public:
+  using Iterator = std::vector<Object>::const_iterator;
+
+  inline Array() noexcept;
+
   template<typename... Args>
   explicit Array(Args&&...args) noexcept;
 
-  static Array makeRange(int64_t start, int64_t end)noexcept;
+  inline static Array makeFromRange(int64_t start, int64_t end)noexcept;
+  inline static Array makeFromIters(Iterator begin, Iterator end)noexcept;
 
   inline Object operator[](Object index) const noexcept;
 
   inline Object len() const noexcept;
 
-  using Iterator = std::vector<Object>::const_iterator;
   inline Iterator begin() const noexcept;
   inline Iterator end() const noexcept;
 
@@ -470,6 +474,8 @@ Object Function::CallableImpl<T, NumArgs, HasVarArgs>::call(const FnArgs args) c
   }
 }
 
+Array::Array() noexcept : data{std::make_shared<std::vector<Object>>()} {}
+
 template<typename... Args>
 Array::Array(Args&&...args) noexcept : data{std::make_shared<std::vector<Object>>(std::vector<Object>{args...})} {}
 
@@ -490,12 +496,13 @@ Array::Iterator Array::end() const noexcept{
   return (*data).cend();
 }
 
-Array Array::makeRange(int64_t start, int64_t end)noexcept {
-  Array a;
+Array Array::makeFromRange(int64_t start, int64_t end) noexcept {
+  Array a{};
   const auto abs = [](auto arg) {
     if (arg < 0) return -arg;
     return arg;
   };
+
   a.data->reserve(abs(end - start));
   if (start > end) {
     for (int64_t i = start; i > end; i--) {
@@ -506,6 +513,20 @@ Array Array::makeRange(int64_t start, int64_t end)noexcept {
       a.data->push_back(Object::makeInt(i));
     }
   }
+
+  return a;
+}
+
+Array Array::makeFromIters(Iterator begin, Iterator end)noexcept {
+  Array a{};
+  a.data->reserve(end - begin);
+
+  auto next = begin;
+  while (next < end) {
+    a.data->push_back(*next);
+    next++;
+  }
+
   return a;
 }
 
@@ -571,7 +592,7 @@ inline Object rangeExprToArray(const Object start, const Object end) noexcept {
         "Cannot construct range expression from arguments of type "sv, objectTypeToString(start.type),
         " and "sv, objectTypeToString(end.type));
 
-  return Object::makeArray(Array::makeRange(start.getInteger(), end.getInteger()));
+  return Object::makeArray(Array::makeFromRange(start.getInteger(), end.getInteger()));
 }
 
 template <typename... Args> Object puts(Args &&...args) noexcept {
@@ -592,6 +613,20 @@ template <typename... Args> Object puts(Args &&...args) noexcept {
   (expandVarArgs(print, std::forward<Args>(args)), ...);
   std::cout << '\n';
   return Object{};
+}
+
+inline Object toArray(Object object) noexcept {
+  check(object.type == ObjectType::VARARGS, "Unsupported object passed to toArray: "sv, objectTypeToString(object.type));
+
+  const VarArgs varargs = object.getVarArgs();
+  return object.makeArray(Array::makeFromIters(varargs.begin(), varargs.end()));
+}
+
+inline Object len(Object object) noexcept {
+  check(object.type == ObjectType::ARRAY, "Unsupported object passed to len: "sv, objectTypeToString(object.type));
+
+  const Array arr = object.getArray();
+  return arr.len();
 }
 
 } // namespace runtime

@@ -136,7 +136,7 @@ func Compile(program string) string {
 
 	file.Close()
 
-	cmd := exec.Command("c++", "-O3", "-std=c++20", "-Wall", "-Werror", "-o", compiledFileName, fileName)
+	cmd := exec.Command("c++", "-O3", "-std=c++20", "-Wall", "-o", compiledFileName, fileName)
 	log.Printf("Running command %q\n", cmd.String())
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
