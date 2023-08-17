@@ -21,6 +21,7 @@ enable_testing()
 add_executable(
   runtime_test
   test/rc_test.cpp
+  test/vec_test.cpp
 )
 
 target_link_libraries(
