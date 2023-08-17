@@ -2,6 +2,8 @@
 
 #include <rc.h>
 
+namespace {
+
 struct Stats {
   size_t constructed{};
   size_t copyConstructed{};
@@ -33,6 +35,8 @@ public:
 private:
   Stats &mStats;
 };
+
+}  // namespace
 
 TEST(Rc, ConstructorAndCopyConstruction) {
   Stats stats{};

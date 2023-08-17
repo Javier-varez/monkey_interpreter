@@ -20,6 +20,7 @@ enable_testing()
 
 add_executable(
   runtime_test
+  test/box_test.cpp
   test/rc_test.cpp
   test/vec_test.cpp
 )
