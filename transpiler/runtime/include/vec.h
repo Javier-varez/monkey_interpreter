@@ -3,8 +3,10 @@
 
 #include <array>
 #include <type_traits>
+#include <functional>
 
 #include <rc.h>
+#include <callable.h>
 
 namespace runtime {
 
@@ -80,6 +82,22 @@ public:
     };
 
     (handleArg(std::forward<Args>(args)), ...);
+  }
+
+  template<Callable<std::optional<T>> C>
+  SmallVec(C callalble, const size_t sizeHint = 0) noexcept {
+    const auto constructSingle = [this]<typename U>(U &&arg) {
+      // TODO(javier-varez): add check call to validate size
+      std::construct_at(reinterpret_cast<T *>(&mStorage[mUsedSize]),
+                        std::forward<U>(arg));
+      mUsedSize += 1;
+    };
+
+    std::optional<T> next = callalble();
+    while (next.has_value()) {
+      constructSingle(next.value());
+      next = callalble();
+    }
   }
 
   SmallVec(const SmallVec& other) {
@@ -196,6 +214,20 @@ public:
     (handleArg(std::forward<Args>(args)), ...);
   }
 
+  template<Callable<std::optional<T>> C>
+  LargeVec(C callable, size_t sizeHint = 0) noexcept {
+    if (sizeHint != 0) {
+      mInner->reserve(sizeHint);
+    }
+
+    std::optional<T> next = callable();
+    while (next.has_value()) {
+      mInner->push_back(std::move(*next));
+      next = callable();
+    }
+  }
+
+
   constexpr Iterator<const T> begin() const noexcept {
     return Iterator{&*mInner->begin()};
   }
@@ -227,6 +259,15 @@ template <typename T> class Vec {
 
 public:
   Vec() noexcept = default;
+
+  template<Callable<std::optional<T>> C>
+  Vec(C callalble, const size_t sizeHint = 0) noexcept {
+    if (sizeHint == 0 || sizeHint > SMALL_VEC_NUM_ELEMS) {
+      mInner.template emplace<LargeVec>(callalble, sizeHint);
+    } else {
+      mInner.template emplace<SmallVec>(callalble, sizeHint);
+    }
+  }
 
   template <typename... Args> static Vec makeVec(Args &&...args) noexcept {
     const size_t count = detail::countElems<T>(std::forward<Args>(args)...);

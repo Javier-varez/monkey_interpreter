@@ -2,6 +2,38 @@
 
 #include <vec.h>
 
+namespace {
+
+template<typename T>
+T makeRange(const size_t start, const size_t end) {
+  const auto abs = [](auto arg) {
+    if (arg < 0)
+      return -arg;
+    return arg;
+  };
+  const size_t sizeHint = abs(end - start);
+
+  int64_t current = start;
+
+  if (start > end) {
+    return T {[&current, end]() -> std::optional<int> {
+      if (current > end) {
+        return std::optional<int>{current--};
+      }
+      return {};
+    }, sizeHint};
+  }
+
+  return T {[&current, end]() -> std::optional<int> {
+    if (current < end) {
+      return std::optional<int>{current++};
+    }
+    return {};
+  }, sizeHint};
+}
+
+}  // namespace
+
 TEST(Vec, ConstructEmpty) {
   const runtime::Vec<int> v;
 
@@ -190,6 +222,42 @@ TEST(Vec, CopyAssign) {
       // immutable vector
       EXPECT_EQ(&v[0], &v2[0]);
       EXPECT_FALSE(v2.isSmallVec());
+    }
+  }
+}
+
+TEST(Vec, MakeWithCallable) {
+  {
+    runtime::LargeVec vec = makeRange<runtime::LargeVec<int>>(0, 100);
+    EXPECT_EQ(vec.size(), 100);
+    for (size_t i = 0; i < vec.size(); i++) {
+      EXPECT_EQ(vec[i], i);
+    }
+  }
+
+  {
+    runtime::SmallVec vec = makeRange<runtime::SmallVec<int, 100>>(0, 100);
+    EXPECT_EQ(vec.size(), 100);
+    for (size_t i = 0; i < vec.size(); i++) {
+      EXPECT_EQ(vec[i], i);
+    }
+  }
+
+  {
+    runtime::Vec vec = makeRange<runtime::Vec<int>>(0, 6);
+    EXPECT_TRUE(vec.isSmallVec());
+    EXPECT_EQ(vec.size(), 6);
+    for (size_t i = 0; i < vec.size(); i++) {
+      EXPECT_EQ(vec[i], i);
+    }
+  }
+
+  {
+    runtime::Vec vec = makeRange<runtime::Vec<int>>(0, 7);
+    EXPECT_FALSE(vec.isSmallVec());
+    EXPECT_EQ(vec.size(), 7);
+    for (size_t i = 0; i < vec.size(); i++) {
+      EXPECT_EQ(vec[i], i);
     }
   }
 }
