@@ -1,2 +1,5 @@
 .monkey
+.cache
 monkey_interpreter
+/transpiler/runtime/build
+compile_commands.json
