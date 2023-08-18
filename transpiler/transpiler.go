@@ -181,7 +181,7 @@ func Compile(program string) string {
 	file.Close()
 
 	buildDir := filepath.Join(tmpDir, "build")
-	cmd := exec.Command("cmake", "-S", tmpDir, "-B", buildDir, "-DCMAKE_BUILD_TYPE=release", "-G", "Ninja")
+	cmd := exec.Command("cmake", "-S", tmpDir, "-B", buildDir, "-DCMAKE_BUILD_TYPE=release", "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=true", "-G", "Ninja")
 	log.Printf("Running command %q\n", cmd.String())
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout

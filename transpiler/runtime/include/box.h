@@ -15,10 +15,11 @@ template <typename U> struct Marker final {};
 
 template <typename T> class Box final {
 public:
-  Box() noexcept : mInner{new T{}} {}
+  constexpr Box() noexcept : mInner{new T{}} {}
 
   template <detail::SameOrDerived<T> U, typename... Args>
-  Box(Marker<U>, Args &&...args) : mInner{new U{std::forward<Args>(args)...}} {}
+  constexpr Box(Marker<U>, Args &&...args)
+      : mInner{new U{std::forward<Args>(args)...}} {}
 
   Box(Box &) = delete;
   Box(const Box &) = delete;

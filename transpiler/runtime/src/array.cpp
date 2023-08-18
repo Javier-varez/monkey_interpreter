@@ -1,8 +1,9 @@
 #include <array.h>
 
+#include <var_args.h>
+
 #include <callable.h>
 #include <object.h>
-#include <var_args.h>
 
 namespace runtime {
 
