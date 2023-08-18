@@ -11,6 +11,9 @@
 #include <string_view>
 #include <variant>
 
+#include <rc.h>
+#include <vec.h>
+
 namespace runtime {
 
 using std::literals::operator""s;
@@ -47,30 +50,13 @@ enum class ObjectType {
 };
 
 struct Object;
+class FnArgs;
 
 template <typename T, T> struct ConstexprLit {};
 
-class FnArgs {
-public:
-  template <std::same_as<Object>... Args>
-  explicit FnArgs(const Args... args) noexcept;
-
-  inline size_t len() const noexcept;
-
-  inline Object operator[](size_t idx) const noexcept;
-
-  using Iterator = std::vector<Object>::const_iterator;
-
-  inline Iterator begin() const noexcept;
-  inline Iterator end() const noexcept;
-
-private:
-  std::shared_ptr<std::vector<Object>> args;
-};
-
 class VarArgs {
 public:
-  using Iterator = std::vector<Object>::const_iterator;
+  using Iterator = Iterator<const Object>;
 
   inline VarArgs(Iterator begin, Iterator end) noexcept;
 
@@ -82,20 +68,21 @@ public:
   inline Iterator end() const noexcept;
 
 private:
-  std::shared_ptr<std::vector<Object>> args;
+  Rc<Vec<Object>> args;
 };
 
 class Function final {
 private:
   struct Callable {
-    virtual Object call(const FnArgs args) const noexcept = 0;
+    virtual Object call(const FnArgs& args) const noexcept = 0;
+    virtual ~Callable() noexcept = default;
   };
 
   template <typename T, size_t NumArgs, bool HasVarArgs>
   struct CallableImpl final : public Callable {
     CallableImpl(T callable) : callable{callable} {}
 
-    Object call(const FnArgs args) const noexcept final;
+    Object call(const FnArgs& args) const noexcept final;
 
     T callable;
   };
@@ -105,21 +92,26 @@ public:
   Function(ConstexprLit<size_t, NumArgs>, ConstexprLit<bool, HasVarArgs>,
            T &&callable)
       : callable{
-            std::make_shared<CallableImpl<T, NumArgs, HasVarArgs>>(callable)} {}
+            Rc<std::unique_ptr<Callable>>{std::make_unique<CallableImpl<T, NumArgs, HasVarArgs>>(callable)}} {}
 
-  inline Object operator()(const FnArgs args) const noexcept;
+  inline Object operator()(const FnArgs& args) const noexcept;
 
 private:
-  std::shared_ptr<Callable> callable;
+  Rc<std::unique_ptr<Callable>> callable;
 };
 
 class Array {
 public:
-  using Iterator = std::vector<Object>::const_iterator;
+  using Iterator = Iterator<const Object>;
 
-  inline Array() noexcept;
+  Array() noexcept = default;
 
-  template <typename... Args> explicit Array(Args &&...args) noexcept;
+  template <typename Arg, typename... Args>
+  requires(!Callable<Arg, void, LargeVec<Object>::Pusher>)
+  explicit Array(Arg&& arg, Args&&...args) noexcept;
+
+  template<Callable<void, typename LargeVec<Object>::Pusher> C>
+  Array(C callable, const size_t sizeHint = 0) noexcept;
 
   inline static Array makeFromRange(int64_t start, int64_t end) noexcept;
   inline static Array makeFromIters(Iterator begin, Iterator end) noexcept;
@@ -131,10 +123,11 @@ public:
   inline Iterator begin() const noexcept;
   inline Iterator end() const noexcept;
 
-  inline void push(Object obj) noexcept;
+  inline Array push(const Object &obj) const noexcept;
 
 private:
-  std::shared_ptr<std::vector<Object>> data;
+  LargeVec<Object> data;
+
 };
 
 [[nodiscard]] inline std::string_view
@@ -444,13 +437,13 @@ inline Object Object::operator[](Object index) const noexcept {
         objectTypeToString(type));
 }
 
-Object Function::operator()(const FnArgs args) const noexcept {
-  const auto result = callable->call(args);
+Object Function::operator()(const FnArgs& args) const noexcept {
+  const auto result = (*callable)->call(args);
   return result;
 }
 
 template <size_t NumArgs, typename C, typename... Args>
-auto expandAndCall(const FnArgs::Iterator argIter, C &&callable, Args... args) {
+auto expandAndCall(const Iterator<const Object> argIter, C &&callable, Args... args) {
   if constexpr (NumArgs == 0) {
     return callable(std::forward<Args>(args)...);
   } else {
@@ -460,9 +453,27 @@ auto expandAndCall(const FnArgs::Iterator argIter, C &&callable, Args... args) {
   }
 }
 
+class FnArgs {
+public:
+  template <std::same_as<Object>... Args>
+  explicit FnArgs(const Args... args) noexcept;
+
+  inline size_t len() const noexcept;
+
+  inline Object operator[](size_t idx) const noexcept;
+
+  using Iterator = Iterator<const Object>;
+
+  inline Iterator begin() const noexcept;
+  inline Iterator end() const noexcept;
+
+private:
+  Vec<Object> args;
+};
+
 template <size_t NumArgs, typename C, typename... Args>
-auto expandAndCallWithVarArgs(const FnArgs::Iterator argIter,
-                              const FnArgs::Iterator argIterEnd, C &&callable,
+auto expandAndCallWithVarArgs(const Iterator<const Object> argIter,
+                              const Iterator<const Object> argIterEnd, C &&callable,
                               Args... args) {
   if constexpr (NumArgs == 0) {
     const Object varArgs{Object::makeVarargs(VarArgs{argIter, argIterEnd})};
@@ -476,7 +487,7 @@ auto expandAndCallWithVarArgs(const FnArgs::Iterator argIter,
 
 template <typename T, size_t NumArgs, bool HasVarArgs>
 Object Function::CallableImpl<T, NumArgs, HasVarArgs>::call(
-    const FnArgs args) const noexcept {
+    const FnArgs& args) const noexcept {
   if constexpr (!HasVarArgs) {
     check(args.len() == NumArgs, "Callable takes "sv, NumArgs,
           " arguments, but "sv, args.len(), " were given");
@@ -489,97 +500,111 @@ Object Function::CallableImpl<T, NumArgs, HasVarArgs>::call(
   }
 }
 
-Array::Array() noexcept : data{std::make_shared<std::vector<Object>>()} {}
-
-template <typename... Args>
-Array::Array(Args &&...args) noexcept
-    : data{std::make_shared<std::vector<Object>>(
-          std::vector<Object>{args...})} {}
+template <typename Arg, typename... Args>
+requires(!Callable<Arg, void, LargeVec<Object>::Pusher>)
+Array::Array(Arg&& arg, Args&&...args) noexcept
+  : data{std::forward<Arg>(arg), std::forward<Args>(args)...} {}
 
 Object Array::operator[](size_t index) const noexcept {
   check(index < len(), "Out of bounds access to array.");
-  return (*data)[index];
+  return data[index];
 }
 
-size_t Array::len() const noexcept { return (*data).size(); }
+size_t Array::len() const noexcept { return data.size(); }
 
-Array::Iterator Array::begin() const noexcept { return (*data).cbegin(); }
+Array::Iterator Array::begin() const noexcept { return data.begin(); }
 
-Array::Iterator Array::end() const noexcept { return (*data).cend(); }
+Array::Iterator Array::end() const noexcept { return data.end(); }
+
+template<Callable<void, typename LargeVec<Object>::Pusher> C>
+Array::Array(C callable, const size_t sizeHint) noexcept : data{callable, sizeHint} { }
 
 Array Array::makeFromRange(int64_t start, int64_t end) noexcept {
-  Array a{};
   const auto abs = [](auto arg) {
     if (arg < 0)
       return -arg;
     return arg;
   };
+  const size_t sizeHint = abs(end - start);
 
-  a.data->reserve(abs(end - start));
-  if (start > end) {
-    for (int64_t i = start; i > end; i--) {
-      a.data->push_back(Object::makeInt(i));
+  return Array {[start, end](LargeVec<Object>::Pusher pusher) noexcept -> void {
+    int64_t current = start;
+    if (start > end) {
+      while (current > end) {
+        pusher.push(Object::makeInt(current--));
+      }
+    } else {
+      while (current < end) {
+        pusher.push(Object::makeInt(current++));
+      }
     }
-  } else {
-    for (int64_t i = start; i < end; i++) {
-      a.data->push_back(Object::makeInt(i));
-    }
-  }
-
-  return a;
+  }, sizeHint};
 }
 
-Array Array::makeFromIters(Iterator begin, Iterator end) noexcept {
-  Array a{};
-  a.data->reserve(end - begin);
-
-  auto next = begin;
-  while (next < end) {
-    a.data->push_back(*next);
-    next++;
-  }
-
-  return a;
+Array Array::makeFromIters(const Iterator begin, const Iterator end) noexcept {
+  return Array {[begin, end](LargeVec<Object>::Pusher pusher) noexcept -> void {
+    auto next = begin;
+    while (next < end) {
+      pusher.push(*next);
+      next++;
+    }
+  }, static_cast<size_t>(end - begin)};
 }
 
-void Array::push(const Object newObj) noexcept { data->push_back(newObj); }
+Array Array::push(const Object& newObj) const noexcept { return Array{data.copyAppend(newObj)}; }
+
+namespace detail {
+
+template<typename...Args>
+size_t unwrappedVarArgsSize(Args&&... args) noexcept {
+  const auto handleArg = []<typename T>(const T arg) {
+    static_assert(std::same_as<T, Object>, "Invalid arg type");
+    if (arg.type == ObjectType::VARARGS) {
+      return arg.getVarArgs().len();
+    }
+    return 1;
+  };
+
+  return (handleArg(args) + ...);
+}
+
+}  // namespace detail
 
 template <std::same_as<Object>... Args>
-FnArgs::FnArgs(const Args... args) noexcept
-    : args(std::make_shared<std::vector<Object>>()) {
-  const auto handleArg = [this]<typename T>(const T arg) {
+FnArgs::FnArgs(const Args... args) noexcept : args([args...](auto pusher) noexcept -> void {
+  const auto handleArg = [pusher]<typename T>(const T arg) {
     static_assert(std::same_as<T, Object>, "Invalid arg type");
     if (arg.type == ObjectType::VARARGS) {
       // Varargs are unwrapped here in the call site
       for (const Object &inner : arg.getVarArgs()) {
-        this->args->push_back(inner);
+        pusher.push(inner);
       }
     } else {
-      this->args->push_back(arg);
+      pusher.push(arg);
     }
   };
 
   (handleArg(args), ...);
-}
+}) { }
 
-size_t FnArgs::len() const noexcept { return args->size(); }
+size_t FnArgs::len() const noexcept { return args.size(); }
 
 Object FnArgs::operator[](size_t idx) const noexcept {
-  check(idx < args->size(), "Out of bounds index to FnArgs object"sv);
-  return (*args)[idx];
+  check(idx < args.size(), "Out of bounds index to FnArgs object"sv);
+  return args[idx];
 }
 
-FnArgs::Iterator FnArgs::begin() const noexcept { return args->cbegin(); }
-FnArgs::Iterator FnArgs::end() const noexcept { return args->cend(); }
+FnArgs::Iterator FnArgs::begin() const noexcept { return args.begin(); }
+FnArgs::Iterator FnArgs::end() const noexcept { return args.end(); }
 
 inline VarArgs::VarArgs(const Iterator begin, const Iterator end) noexcept
-    : args(std::make_shared<std::vector<Object>>()) {
+    : args([begin, end](auto pusher) noexcept->void {
   Iterator next = begin;
   while (next < end) {
-    args->push_back(*next);
+    pusher.push(*next);
     next++;
   }
-}
+}) {}
 
 inline size_t VarArgs::len() const noexcept { return args->size(); }
 
@@ -588,10 +613,10 @@ inline Object VarArgs::operator[](size_t idx) const noexcept {
 }
 
 inline VarArgs::Iterator VarArgs::begin() const noexcept {
-  return args->cbegin();
+  return args->begin();
 }
 
-inline VarArgs::Iterator VarArgs::end() const noexcept { return args->cend(); }
+inline VarArgs::Iterator VarArgs::end() const noexcept { return args->end(); }
 
 inline Object rangeExprToArray(const Object start, const Object end) noexcept {
   check(start.type == ObjectType::INTEGER && end.type == ObjectType::INTEGER,
@@ -681,9 +706,8 @@ inline Object push(Object object, Object newObj) noexcept {
         "Unsupported object passed to first: "sv,
         objectTypeToString(object.type));
 
-  const auto arr = object.getArray();
-  auto newArray = Array::makeFromIters(arr.begin(), arr.end());
-  newArray.push(newObj);
+  const auto &arr = object.getArray();
+  auto newArray = arr.push(newObj);
   return Object::makeArray(newArray);
 }
 

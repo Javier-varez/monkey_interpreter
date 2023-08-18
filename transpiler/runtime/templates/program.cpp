@@ -1,3 +1,5 @@
+#include <runtime.h>
+
 namespace runtime {
 
 void _mainProgram() {

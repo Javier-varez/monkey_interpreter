@@ -3,9 +3,11 @@ package transpiler
 import (
 	"bytes"
 	"embed"
+	"io"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"text/template"
@@ -13,7 +15,7 @@ import (
 	"github.com/javier-varez/monkey_interpreter/ast"
 )
 
-//go:embed runtime/*
+//go:embed runtime/include/* runtime/templates/*
 var templateFS embed.FS
 
 type astNodeType string
@@ -43,9 +45,10 @@ const (
 )
 
 const runtimeHeaderFile string = "runtime/include/runtime.h"
+const runtimeIncludeDir = "runtime/include"
 
 var funcs template.FuncMap = map[string]any{
-	"Transpile": transpileInner,
+	"Transpile": Transpile,
 }
 
 func loadTemplate(nodeType astNodeType, filename string) {
@@ -116,12 +119,45 @@ func execTemplate(nodeType astNodeType, node ast.Node) string {
 	return buffer.String()
 }
 
-func Transpile(node ast.Node) string {
-	return preamble + transpileInner(node)
+func checkErr(err error, fmt string, args ...interface{}) {
+	if err != nil {
+		log.Fatalf(fmt, args...)
+	}
+}
+
+func expandBuildEnv() string {
+	tmpDir, err := os.MkdirTemp("", "monkey_transpiler_*")
+	checkErr(err, "Unable to create temporary dir for monkey: %v", err)
+
+	includeDir := filepath.Join(tmpDir, "include")
+	checkErr(os.Mkdir(includeDir, 0755), "Unable to create include dir for monkey: %v", err)
+
+	entries, err := templateFS.ReadDir(runtimeIncludeDir)
+	checkErr(err, "Unable to read runtime/include dir: %v", err)
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			srcFile, err := templateFS.Open(filepath.Join(runtimeIncludeDir, entry.Name()))
+			checkErr(err, "Unable to read runtime/include file: %v", err)
+			defer srcFile.Close()
+
+			dstFile, err := os.Create(filepath.Join(includeDir, entry.Name()))
+			checkErr(err, "Unable to open temp include file: %v", err)
+			defer dstFile.Close()
+
+			_, err = io.Copy(dstFile, srcFile)
+			checkErr(err, "Unable to copy include file: %v", err)
+		}
+	}
+
+	return tmpDir
 }
 
 func Compile(program string) string {
-	file, err := os.CreateTemp("", "monkey_transpiler_out_*.cpp")
+	tmpDir := expandBuildEnv()
+	includeDir := filepath.Join(tmpDir, "include")
+
+	file, err := os.Create(filepath.Join(tmpDir, "main.cpp"))
 	if err != nil {
 		log.Fatalf("Unable to create temporary cpp file: %v", err)
 	}
@@ -136,7 +172,7 @@ func Compile(program string) string {
 
 	file.Close()
 
-	cmd := exec.Command("c++", "-O3", "-std=c++20", "-Wall", "-o", compiledFileName, fileName)
+	cmd := exec.Command("c++", "-O3", "-std=c++20", "-Wall", "-I", includeDir, "-o", compiledFileName, fileName)
 	log.Printf("Running command %q\n", cmd.String())
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
@@ -157,7 +193,7 @@ func Compile(program string) string {
 	return buffer.String()
 }
 
-func transpileInner(node ast.Node) string {
+func Transpile(node ast.Node) string {
 	switch node := node.(type) {
 	case *ast.Program:
 		return execTemplate(PROGRAM, node)
