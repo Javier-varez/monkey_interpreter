@@ -19,6 +19,11 @@ jobs:
       with:
         go-version: '1.18'
 
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build
+
     - name: Build
       run: go build -v ./...
 
