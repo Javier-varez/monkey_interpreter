@@ -265,20 +265,20 @@ private:
 template <typename T> class Vec {
   constexpr static size_t SMALL_VEC_NUM_ELEMS = 6;
 
-  using SmallVec = SmallVec<T, SMALL_VEC_NUM_ELEMS>;
-  using LargeVec = LargeVec<T>;
+  using Svec = SmallVec<T, SMALL_VEC_NUM_ELEMS>;
+  using Lvec = LargeVec<T>;
 
 public:
   Vec() noexcept = default;
 
   template <typename C>
-    requires(Callable<C, void, typename SmallVec::Pusher> &&
-             Callable<C, void, typename LargeVec::Pusher>)
+    requires(Callable<C, void, typename Svec::Pusher> &&
+             Callable<C, void, typename Lvec::Pusher>)
   Vec(C callable, const size_t sizeHint = 0) noexcept {
     if (sizeHint == 0 || sizeHint > SMALL_VEC_NUM_ELEMS) {
-      mInner.template emplace<LargeVec>(callable, sizeHint);
+      mInner.template emplace<Lvec>(callable, sizeHint);
     } else {
-      mInner.template emplace<SmallVec>(callable, sizeHint);
+      mInner.template emplace<Svec>(callable, sizeHint);
     }
   }
 
@@ -286,9 +286,9 @@ public:
     const size_t count = detail::countElems<T>(std::forward<Args>(args)...);
     if (count > SMALL_VEC_NUM_ELEMS) {
       // Construct new refcounted
-      return Vec{std::in_place_type<LargeVec>, std::forward<Args>(args)...};
+      return Vec{std::in_place_type<Lvec>, std::forward<Args>(args)...};
     }
-    return Vec{std::in_place_type<SmallVec>, std::forward<Args>(args)...};
+    return Vec{std::in_place_type<Svec>, std::forward<Args>(args)...};
   }
 
   Vec(const Vec &) = default;
@@ -331,26 +331,26 @@ public:
 
     if (count > SMALL_VEC_NUM_ELEMS) {
       // Construct new refcounted
-      return Vec{std::in_place_type<LargeVec>, currElemsSpan,
+      return Vec{std::in_place_type<Lvec>, currElemsSpan,
                  std::forward<Args>(args)...};
     }
 
-    return Vec{std::in_place_type<SmallVec>, currElemsSpan,
+    return Vec{std::in_place_type<Svec>, currElemsSpan,
                std::forward<Args>(args)...};
   }
 
   bool isSmallVec() const noexcept { return mInner.index() == 0; }
 
 private:
-  std::variant<SmallVec, LargeVec> mInner;
+  std::variant<Svec, Lvec> mInner;
 
   template <typename... Args>
-  Vec(std::in_place_type_t<SmallVec>, Args &&...args) noexcept
-      : mInner(std::in_place_type<SmallVec>, std::forward<Args>(args)...) {}
+  Vec(std::in_place_type_t<Svec>, Args &&...args) noexcept
+      : mInner(std::in_place_type<Svec>, std::forward<Args>(args)...) {}
 
   template <typename... Args>
-  Vec(std::in_place_type_t<LargeVec>, Args &&...args) noexcept
-      : mInner(std::in_place_type<LargeVec>, std::forward<Args>(args)...) {}
+  Vec(std::in_place_type_t<Lvec>, Args &&...args) noexcept
+      : mInner(std::in_place_type<Lvec>, std::forward<Args>(args)...) {}
 };
 
 } // namespace runtime

@@ -36,6 +36,18 @@ private:
   Stats &mStats;
 };
 
+class Base {
+public:
+  virtual int doStuff() noexcept = 0;
+  virtual ~Base() noexcept = default;
+};
+
+class Derived final : public Base {
+public:
+  int doStuff() noexcept final { return 123; }
+  ~Derived() noexcept final = default;
+};
+
 }  // namespace
 
 TEST(Box, ConstructionAndDestruction) {
@@ -48,7 +60,7 @@ TEST(Box, ConstructionAndDestruction) {
   EXPECT_EQ(stats.destructed, 0);
 
   {
-    runtime::Box<StatCounter> box{stats};
+    runtime::Box<StatCounter> box{runtime::Marker<StatCounter>{}, stats};
 
     EXPECT_EQ(stats.constructed, 1);
     EXPECT_EQ(stats.copyConstructed, 0);
@@ -67,7 +79,7 @@ TEST(Box, ConstructionAndDestruction) {
 }
 
 TEST(Box, AccessInner) {
-  runtime::Box<int> box{10};
+  runtime::Box<int> box{runtime::Marker<int>{}, 10};
   EXPECT_EQ(*box.operator->(), 10);
   EXPECT_EQ(box.operator*(), 10);
   EXPECT_EQ(*box, 10);
@@ -78,7 +90,12 @@ TEST(Box, AccessInner) {
   EXPECT_EQ(box.operator*(), 12);
   EXPECT_EQ(*box, 12);
 
-  const runtime::Box<int> constBox{12};
+  const runtime::Box<int> constBox{runtime::Marker<int>{}, 12};
   EXPECT_EQ(*constBox.operator->(), 12);
   EXPECT_EQ(constBox.operator*(), 12);
+}
+
+TEST(Box, FromDerived) {
+  runtime::Box<Base> box{runtime::Marker<Derived>{}};
+  EXPECT_EQ(box->doStuff(), 123);
 }

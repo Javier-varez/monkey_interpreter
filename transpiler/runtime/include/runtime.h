@@ -11,6 +11,7 @@
 #include <string_view>
 #include <variant>
 
+#include <box.h>
 #include <rc.h>
 #include <vec.h>
 
@@ -56,16 +57,16 @@ template <typename T, T> struct ConstexprLit {};
 
 class VarArgs {
 public:
-  using Iterator = Iterator<const Object>;
+  using Iter = Iterator<const Object>;
 
-  inline VarArgs(Iterator begin, Iterator end) noexcept;
+  inline VarArgs(Iter begin, Iter end) noexcept;
 
   inline size_t len() const noexcept;
 
   inline Object operator[](size_t idx) const noexcept;
 
-  inline Iterator begin() const noexcept;
-  inline Iterator end() const noexcept;
+  inline Iter begin() const noexcept;
+  inline Iter end() const noexcept;
 
 private:
   Rc<Vec<Object>> args;
@@ -91,19 +92,17 @@ public:
   template <typename T, size_t NumArgs, bool HasVarArgs>
   Function(ConstexprLit<size_t, NumArgs>, ConstexprLit<bool, HasVarArgs>,
            T &&callable)
-      : callable{Rc<std::unique_ptr<Callable>>{
-            std::make_unique<CallableImpl<T, NumArgs, HasVarArgs>>(callable)}} {
-  }
+      : callable{Marker<CallableImpl<T, NumArgs, HasVarArgs>>{}, callable} {}
 
   inline Object operator()(const FnArgs &args) const noexcept;
 
 private:
-  Rc<std::unique_ptr<Callable>> callable;
+  Rc<Box<Callable>> callable;
 };
 
 class Array {
 public:
-  using Iterator = Iterator<const Object>;
+  using Iter = Iterator<const Object>;
 
   Array() noexcept = default;
 
@@ -115,14 +114,14 @@ public:
   Array(C callable, const size_t sizeHint = 0) noexcept;
 
   inline static Array makeFromRange(int64_t start, int64_t end) noexcept;
-  inline static Array makeFromIters(Iterator begin, Iterator end) noexcept;
+  inline static Array makeFromIters(Iter begin, Iter end) noexcept;
 
   inline Object operator[](size_t index) const noexcept;
 
   inline size_t len() const noexcept;
 
-  inline Iterator begin() const noexcept;
-  inline Iterator end() const noexcept;
+  inline Iter begin() const noexcept;
+  inline Iter end() const noexcept;
 
   inline Array push(const Object &obj) const noexcept;
 
@@ -463,10 +462,10 @@ public:
 
   inline Object operator[](size_t idx) const noexcept;
 
-  using Iterator = Iterator<const Object>;
+  using Iter = Iterator<const Object>;
 
-  inline Iterator begin() const noexcept;
-  inline Iterator end() const noexcept;
+  inline Iter begin() const noexcept;
+  inline Iter end() const noexcept;
 
 private:
   Vec<Object> args;
@@ -513,9 +512,9 @@ Object Array::operator[](size_t index) const noexcept {
 
 size_t Array::len() const noexcept { return data.size(); }
 
-Array::Iterator Array::begin() const noexcept { return data.begin(); }
+Array::Iter Array::begin() const noexcept { return data.begin(); }
 
-Array::Iterator Array::end() const noexcept { return data.end(); }
+Array::Iter Array::end() const noexcept { return data.end(); }
 
 template <Callable<void, typename LargeVec<Object>::Pusher> C>
 Array::Array(C callable, const size_t sizeHint) noexcept
@@ -544,7 +543,7 @@ Array Array::makeFromRange(int64_t start, int64_t end) noexcept {
                sizeHint};
 }
 
-Array Array::makeFromIters(const Iterator begin, const Iterator end) noexcept {
+Array Array::makeFromIters(const Iter begin, const Iter end) noexcept {
   return Array{[begin, end](LargeVec<Object>::Pusher pusher) noexcept -> void {
                  auto next = begin;
                  while (next < end) {
@@ -601,12 +600,12 @@ Object FnArgs::operator[](size_t idx) const noexcept {
   return args[idx];
 }
 
-FnArgs::Iterator FnArgs::begin() const noexcept { return args.begin(); }
-FnArgs::Iterator FnArgs::end() const noexcept { return args.end(); }
+FnArgs::Iter FnArgs::begin() const noexcept { return args.begin(); }
+FnArgs::Iter FnArgs::end() const noexcept { return args.end(); }
 
-inline VarArgs::VarArgs(const Iterator begin, const Iterator end) noexcept
+inline VarArgs::VarArgs(const Iter begin, const Iter end) noexcept
     : args([begin, end](auto pusher) noexcept -> void {
-        Iterator next = begin;
+        Iter next = begin;
         while (next < end) {
           pusher.push(*next);
           next++;
@@ -619,11 +618,9 @@ inline Object VarArgs::operator[](size_t idx) const noexcept {
   return (*args)[idx];
 }
 
-inline VarArgs::Iterator VarArgs::begin() const noexcept {
-  return args->begin();
-}
+inline VarArgs::Iter VarArgs::begin() const noexcept { return args->begin(); }
 
-inline VarArgs::Iterator VarArgs::end() const noexcept { return args->end(); }
+inline VarArgs::Iter VarArgs::end() const noexcept { return args->end(); }
 
 inline Object rangeExprToArray(const Object start, const Object end) noexcept {
   check(start.type == ObjectType::INTEGER && end.type == ObjectType::INTEGER,
