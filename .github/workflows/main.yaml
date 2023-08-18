@@ -28,8 +28,8 @@ jobs:
   cpp-tests:
     runs-on: ubuntu-latest
     strategy:
-    matrix:
-      compiler: ['clang++-14', 'g++']
+      matrix:
+        compiler: ['clang++-14', 'g++']
 
     steps:
     - name: checkout
