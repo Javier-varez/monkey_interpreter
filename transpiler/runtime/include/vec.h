@@ -27,8 +27,8 @@ public:
     return *this;
   }
 
-  constexpr Iterator &operator++(int) noexcept {
-    const Iterator copy = *this;
+  constexpr Iterator operator++(int) noexcept {
+    const Iterator copy{*this};
     mPtr++;
     return copy;
   }
@@ -42,7 +42,7 @@ public:
   constexpr T &operator*() const noexcept { return *mPtr; }
 
   constexpr ssize_t operator-(const Iterator other) const noexcept {
-    return *mPtr;
+    return mPtr - other.mPtr;
   }
 
   auto operator<=>(const Iterator &) const = default;
@@ -56,48 +56,49 @@ template <typename T> struct Span {
   Iterator<const T> end;
 };
 
+template<typename T>
+class Vec;
+
 template<typename T, size_t NUM_ELEMS>
 class SmallVec final {
 public:
-  template <typename... Args> SmallVec(Args &&...args) noexcept {
-    const auto constructSingle = [this]<typename U>(U &&arg) {
-      // TODO(javier-varez): add check call to validate size
-      std::construct_at(reinterpret_cast<T *>(&mStorage[mUsedSize]),
-                        std::forward<U>(arg));
-      mUsedSize += 1;
-    };
+  struct Pusher {
+    SmallVec &vec;
 
-    const auto handleArg = [constructSingle]<typename U>(U &&arg) {
+    void push(const T& item) const noexcept {
+      std::construct_at(reinterpret_cast<T *>(&vec.mStorage[vec.mUsedSize]), item);
+      vec.mUsedSize += 1;
+    }
+
+    void push(T&& item) const noexcept {
+      std::construct_at(reinterpret_cast<T *>(&vec.mStorage[vec.mUsedSize]), std::move(item));
+      vec.mUsedSize += 1;
+    }
+  };
+
+  template <typename... Args> SmallVec(Args &&...args) noexcept {
+    const Pusher pusher{.vec{*this}};
+
+    const auto handleArg = [pusher]<typename U>(U &&arg) {
       if constexpr (std::same_as<std::remove_cv_t<std::remove_reference_t<
                                      std::decay_t<U>>>,
                                  Span<const T>>) {
         auto current = arg.begin;
         while (current < arg.end) {
-          constructSingle(*current);
+          pusher.push(*current);
           ++current;
         }
       } else {
-        constructSingle(std::forward<U>(arg));
+        pusher.push(std::forward<U>(arg));
       }
     };
 
     (handleArg(std::forward<Args>(args)), ...);
   }
 
-  template<Callable<std::optional<T>> C>
+  template<Callable<void, Pusher> C>
   SmallVec(C callalble, const size_t sizeHint = 0) noexcept {
-    const auto constructSingle = [this]<typename U>(U &&arg) {
-      // TODO(javier-varez): add check call to validate size
-      std::construct_at(reinterpret_cast<T *>(&mStorage[mUsedSize]),
-                        std::forward<U>(arg));
-      mUsedSize += 1;
-    };
-
-    std::optional<T> next = callalble();
-    while (next.has_value()) {
-      constructSingle(next.value());
-      next = callalble();
-    }
+    callalble(Pusher{.vec{*this}});
   }
 
   SmallVec(const SmallVec& other) {
@@ -193,6 +194,18 @@ static size_t countElems(U &&current, Rest &&...rest) {
 template<typename T>
 class LargeVec final {
 public:
+  struct Pusher final {
+    LargeVec& vec;
+
+    void push(const T& item) const noexcept {
+      vec.mInner->push_back(item);
+    }
+
+    void push(T&& item) const noexcept {
+      vec.mInner->push_back(std::move(item));
+    }
+  };
+
   template <typename... Args> LargeVec(Args &&...args) noexcept {
     const size_t numElems = detail::countElems<T>(std::forward<Args>(args)...);
     mInner->reserve(numElems);
@@ -214,17 +227,14 @@ public:
     (handleArg(std::forward<Args>(args)), ...);
   }
 
-  template<Callable<std::optional<T>> C>
+  template<Callable<void, Pusher> C>
   LargeVec(C callable, size_t sizeHint = 0) noexcept {
     if (sizeHint != 0) {
       mInner->reserve(sizeHint);
     }
 
-    std::optional<T> next = callable();
-    while (next.has_value()) {
-      mInner->push_back(std::move(*next));
-      next = callable();
-    }
+    // Allow caller to push data during construction
+    callable(Pusher{.vec{*this}});
   }
 
 
@@ -244,6 +254,12 @@ public:
 
   constexpr size_t size() const noexcept { return mInner->size(); }
 
+  template <typename... Args>
+  constexpr LargeVec copyAppend(Args &&...args) const noexcept {
+    const Span<const T> currElemsSpan{.begin = begin(), .end = end()};
+    return LargeVec{currElemsSpan, std::forward<Args>(args)...};
+  }
+
 private:
   Rc<std::vector<T>> mInner;
 };
@@ -260,12 +276,13 @@ template <typename T> class Vec {
 public:
   Vec() noexcept = default;
 
-  template<Callable<std::optional<T>> C>
-  Vec(C callalble, const size_t sizeHint = 0) noexcept {
+  template<typename C>
+  requires(Callable<C, void, typename SmallVec::Pusher> && Callable<C, void, typename LargeVec::Pusher>)
+  Vec(C callable, const size_t sizeHint = 0) noexcept {
     if (sizeHint == 0 || sizeHint > SMALL_VEC_NUM_ELEMS) {
-      mInner.template emplace<LargeVec>(callalble, sizeHint);
+      mInner.template emplace<LargeVec>(callable, sizeHint);
     } else {
-      mInner.template emplace<SmallVec>(callalble, sizeHint);
+      mInner.template emplace<SmallVec>(callable, sizeHint);
     }
   }
 

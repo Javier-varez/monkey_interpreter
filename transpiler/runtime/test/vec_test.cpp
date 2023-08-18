@@ -11,24 +11,20 @@ T makeRange(const size_t start, const size_t end) {
       return -arg;
     return arg;
   };
+
   const size_t sizeHint = abs(end - start);
 
-  int64_t current = start;
-
-  if (start > end) {
-    return T {[&current, end]() -> std::optional<int> {
-      if (current > end) {
-        return std::optional<int>{current--};
+  return T {[start, end](auto pusher) noexcept -> void {
+    int64_t current = start;
+    if (start > end) {
+      while (current > end) {
+        pusher.push(current--);
       }
-      return {};
-    }, sizeHint};
-  }
-
-  return T {[&current, end]() -> std::optional<int> {
-    if (current < end) {
-      return std::optional<int>{current++};
+    } else {
+      while (current < end) {
+        pusher.push(current++);
+      }
     }
-    return {};
   }, sizeHint};
 }
 
