@@ -74,7 +74,7 @@ private:
 class Function final {
 private:
   struct Callable {
-    virtual Object call(const FnArgs& args) const noexcept = 0;
+    virtual Object call(const FnArgs &args) const noexcept = 0;
     virtual ~Callable() noexcept = default;
   };
 
@@ -82,7 +82,7 @@ private:
   struct CallableImpl final : public Callable {
     CallableImpl(T callable) : callable{callable} {}
 
-    Object call(const FnArgs& args) const noexcept final;
+    Object call(const FnArgs &args) const noexcept final;
 
     T callable;
   };
@@ -91,10 +91,11 @@ public:
   template <typename T, size_t NumArgs, bool HasVarArgs>
   Function(ConstexprLit<size_t, NumArgs>, ConstexprLit<bool, HasVarArgs>,
            T &&callable)
-      : callable{
-            Rc<std::unique_ptr<Callable>>{std::make_unique<CallableImpl<T, NumArgs, HasVarArgs>>(callable)}} {}
+      : callable{Rc<std::unique_ptr<Callable>>{
+            std::make_unique<CallableImpl<T, NumArgs, HasVarArgs>>(callable)}} {
+  }
 
-  inline Object operator()(const FnArgs& args) const noexcept;
+  inline Object operator()(const FnArgs &args) const noexcept;
 
 private:
   Rc<std::unique_ptr<Callable>> callable;
@@ -107,10 +108,10 @@ public:
   Array() noexcept = default;
 
   template <typename Arg, typename... Args>
-  requires(!Callable<Arg, void, LargeVec<Object>::Pusher>)
-  explicit Array(Arg&& arg, Args&&...args) noexcept;
+    requires(!Callable<Arg, void, LargeVec<Object>::Pusher>)
+  explicit Array(Arg &&arg, Args &&...args) noexcept;
 
-  template<Callable<void, typename LargeVec<Object>::Pusher> C>
+  template <Callable<void, typename LargeVec<Object>::Pusher> C>
   Array(C callable, const size_t sizeHint = 0) noexcept;
 
   inline static Array makeFromRange(int64_t start, int64_t end) noexcept;
@@ -127,7 +128,6 @@ public:
 
 private:
   LargeVec<Object> data;
-
 };
 
 [[nodiscard]] inline std::string_view
@@ -437,13 +437,14 @@ inline Object Object::operator[](Object index) const noexcept {
         objectTypeToString(type));
 }
 
-Object Function::operator()(const FnArgs& args) const noexcept {
+Object Function::operator()(const FnArgs &args) const noexcept {
   const auto result = (*callable)->call(args);
   return result;
 }
 
 template <size_t NumArgs, typename C, typename... Args>
-auto expandAndCall(const Iterator<const Object> argIter, C &&callable, Args... args) {
+auto expandAndCall(const Iterator<const Object> argIter, C &&callable,
+                   Args... args) {
   if constexpr (NumArgs == 0) {
     return callable(std::forward<Args>(args)...);
   } else {
@@ -473,8 +474,8 @@ private:
 
 template <size_t NumArgs, typename C, typename... Args>
 auto expandAndCallWithVarArgs(const Iterator<const Object> argIter,
-                              const Iterator<const Object> argIterEnd, C &&callable,
-                              Args... args) {
+                              const Iterator<const Object> argIterEnd,
+                              C &&callable, Args... args) {
   if constexpr (NumArgs == 0) {
     const Object varArgs{Object::makeVarargs(VarArgs{argIter, argIterEnd})};
     return callable(std::forward<Args>(args)..., varArgs);
@@ -487,7 +488,7 @@ auto expandAndCallWithVarArgs(const Iterator<const Object> argIter,
 
 template <typename T, size_t NumArgs, bool HasVarArgs>
 Object Function::CallableImpl<T, NumArgs, HasVarArgs>::call(
-    const FnArgs& args) const noexcept {
+    const FnArgs &args) const noexcept {
   if constexpr (!HasVarArgs) {
     check(args.len() == NumArgs, "Callable takes "sv, NumArgs,
           " arguments, but "sv, args.len(), " were given");
@@ -501,9 +502,9 @@ Object Function::CallableImpl<T, NumArgs, HasVarArgs>::call(
 }
 
 template <typename Arg, typename... Args>
-requires(!Callable<Arg, void, LargeVec<Object>::Pusher>)
-Array::Array(Arg&& arg, Args&&...args) noexcept
-  : data{std::forward<Arg>(arg), std::forward<Args>(args)...} {}
+  requires(!Callable<Arg, void, LargeVec<Object>::Pusher>)
+Array::Array(Arg &&arg, Args &&...args) noexcept
+    : data{std::forward<Arg>(arg), std::forward<Args>(args)...} {}
 
 Object Array::operator[](size_t index) const noexcept {
   check(index < len(), "Out of bounds access to array.");
@@ -516,8 +517,9 @@ Array::Iterator Array::begin() const noexcept { return data.begin(); }
 
 Array::Iterator Array::end() const noexcept { return data.end(); }
 
-template<Callable<void, typename LargeVec<Object>::Pusher> C>
-Array::Array(C callable, const size_t sizeHint) noexcept : data{callable, sizeHint} { }
+template <Callable<void, typename LargeVec<Object>::Pusher> C>
+Array::Array(C callable, const size_t sizeHint) noexcept
+    : data{callable, sizeHint} {}
 
 Array Array::makeFromRange(int64_t start, int64_t end) noexcept {
   const auto abs = [](auto arg) {
@@ -527,36 +529,40 @@ Array Array::makeFromRange(int64_t start, int64_t end) noexcept {
   };
   const size_t sizeHint = abs(end - start);
 
-  return Array {[start, end](LargeVec<Object>::Pusher pusher) noexcept -> void {
-    int64_t current = start;
-    if (start > end) {
-      while (current > end) {
-        pusher.push(Object::makeInt(current--));
-      }
-    } else {
-      while (current < end) {
-        pusher.push(Object::makeInt(current++));
-      }
-    }
-  }, sizeHint};
+  return Array{[start, end](LargeVec<Object>::Pusher pusher) noexcept -> void {
+                 int64_t current = start;
+                 if (start > end) {
+                   while (current > end) {
+                     pusher.push(Object::makeInt(current--));
+                   }
+                 } else {
+                   while (current < end) {
+                     pusher.push(Object::makeInt(current++));
+                   }
+                 }
+               },
+               sizeHint};
 }
 
 Array Array::makeFromIters(const Iterator begin, const Iterator end) noexcept {
-  return Array {[begin, end](LargeVec<Object>::Pusher pusher) noexcept -> void {
-    auto next = begin;
-    while (next < end) {
-      pusher.push(*next);
-      next++;
-    }
-  }, static_cast<size_t>(end - begin)};
+  return Array{[begin, end](LargeVec<Object>::Pusher pusher) noexcept -> void {
+                 auto next = begin;
+                 while (next < end) {
+                   pusher.push(*next);
+                   next++;
+                 }
+               },
+               static_cast<size_t>(end - begin)};
 }
 
-Array Array::push(const Object& newObj) const noexcept { return Array{data.copyAppend(newObj)}; }
+Array Array::push(const Object &newObj) const noexcept {
+  return Array{data.copyAppend(newObj)};
+}
 
 namespace detail {
 
-template<typename...Args>
-size_t unwrappedVarArgsSize(Args&&... args) noexcept {
+template <typename... Args>
+size_t unwrappedVarArgsSize(Args &&...args) noexcept {
   const auto handleArg = []<typename T>(const T arg) {
     static_assert(std::same_as<T, Object>, "Invalid arg type");
     if (arg.type == ObjectType::VARARGS) {
@@ -568,24 +574,25 @@ size_t unwrappedVarArgsSize(Args&&... args) noexcept {
   return (handleArg(args) + ...);
 }
 
-}  // namespace detail
+} // namespace detail
 
 template <std::same_as<Object>... Args>
-FnArgs::FnArgs(const Args... args) noexcept : args([args...](auto pusher) noexcept -> void {
-  const auto handleArg = [pusher]<typename T>(const T arg) {
-    static_assert(std::same_as<T, Object>, "Invalid arg type");
-    if (arg.type == ObjectType::VARARGS) {
-      // Varargs are unwrapped here in the call site
-      for (const Object &inner : arg.getVarArgs()) {
-        pusher.push(inner);
-      }
-    } else {
-      pusher.push(arg);
-    }
-  };
+FnArgs::FnArgs(const Args... args) noexcept
+    : args([args...](auto pusher) noexcept -> void {
+        const auto handleArg = [pusher]<typename T>(const T arg) {
+          static_assert(std::same_as<T, Object>, "Invalid arg type");
+          if (arg.type == ObjectType::VARARGS) {
+            // Varargs are unwrapped here in the call site
+            for (const Object &inner : arg.getVarArgs()) {
+              pusher.push(inner);
+            }
+          } else {
+            pusher.push(arg);
+          }
+        };
 
-  (handleArg(args), ...);
-}) { }
+        (handleArg(args), ...);
+      }) {}
 
 size_t FnArgs::len() const noexcept { return args.size(); }
 
@@ -598,13 +605,13 @@ FnArgs::Iterator FnArgs::begin() const noexcept { return args.begin(); }
 FnArgs::Iterator FnArgs::end() const noexcept { return args.end(); }
 
 inline VarArgs::VarArgs(const Iterator begin, const Iterator end) noexcept
-    : args([begin, end](auto pusher) noexcept->void {
-  Iterator next = begin;
-  while (next < end) {
-    pusher.push(*next);
-    next++;
-  }
-}) {}
+    : args([begin, end](auto pusher) noexcept -> void {
+        Iterator next = begin;
+        while (next < end) {
+          pusher.push(*next);
+          next++;
+        }
+      }) {}
 
 inline size_t VarArgs::len() const noexcept { return args->size(); }
 

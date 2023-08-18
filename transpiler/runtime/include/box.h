@@ -5,18 +5,17 @@
 
 namespace runtime {
 
-template<typename T>
-class Box final {
+template <typename T> class Box final {
 public:
-  template<typename ... Args>
-  Box(Args&&... args) : mInner{new T {std::forward<Args>(args)...}} {}
+  template <typename... Args>
+  Box(Args &&...args) : mInner{new T{std::forward<Args>(args)...}} {}
 
-  Box(Box&) = delete;
-  Box(const Box&) = delete;
-  Box(Box&&) = delete;
+  Box(Box &) = delete;
+  Box(const Box &) = delete;
+  Box(Box &&) = delete;
 
-  Box& operator=(const Box&) = delete;
-  Box& operator=(Box&&) = delete;
+  Box &operator=(const Box &) = delete;
+  Box &operator=(Box &&) = delete;
 
   constexpr ~Box() noexcept { delete mInner; }
 
@@ -29,9 +28,9 @@ public:
   constexpr const T &operator*() const noexcept { return *mInner; }
 
 private:
-  T* mInner;
+  T *mInner;
 };
 
-}
+} // namespace runtime
 
-#endif  // _RUNTIME_BOX_H_
+#endif // _RUNTIME_BOX_H_
