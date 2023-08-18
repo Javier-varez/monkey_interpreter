@@ -48,7 +48,7 @@ TEST(Rc, ConstructorAndCopyConstruction) {
   EXPECT_EQ(stats.destructed, 0);
 
   {
-    runtime::Rc<StatCounter> rc{stats};
+    runtime::Rc<StatCounter> rc{runtime::Marker<StatCounter>{}, stats};
 
     EXPECT_EQ(stats.constructed, 1);
     EXPECT_EQ(stats.copyConstructed, 0);
@@ -113,7 +113,7 @@ TEST(Rc, AssignmentOp) {
   Stats innerStats{};
 
   {
-    runtime::Rc<StatCounter> rc{stats};
+    runtime::Rc<StatCounter> rc{runtime::Marker<StatCounter>{}, stats};
 
     EXPECT_EQ(stats.constructed, 1);
     EXPECT_EQ(stats.copyConstructed, 0);
@@ -123,7 +123,7 @@ TEST(Rc, AssignmentOp) {
     EXPECT_EQ(stats.destructed, 0);
 
     {
-      runtime::Rc<StatCounter> rc2{innerStats};
+      runtime::Rc<StatCounter> rc2{runtime::Marker<StatCounter>{}, innerStats};
 
       EXPECT_EQ(innerStats.constructed, 1);
       EXPECT_EQ(innerStats.copyConstructed, 0);

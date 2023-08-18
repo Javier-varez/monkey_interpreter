@@ -5,6 +5,8 @@
 #include <cstdlib>
 #include <utility>
 
+#include <box.h>
+
 namespace runtime {
 
 /**
@@ -12,10 +14,12 @@ namespace runtime {
  */
 template <typename T> class Rc {
 public:
-  template <typename... Args>
-  constexpr Rc(Args &&...args) noexcept
+  Rc() noexcept : mBlock{new Block{}} {}
+
+  template <detail::SameOrDerived<T> U, typename... Args>
+  constexpr Rc(Marker<U>, Args &&...args) noexcept
       : mBlock{
-            new Block{.elem{T{std::forward<Args>(args)...}}, .refCount = 1}} {}
+            new Block{.elem{Box<T>{Marker<U>{}, std::forward<Args>(args)...}}}} {}
 
   constexpr Rc(const Rc &other) noexcept : mBlock{other.mBlock} {
     ++mBlock->refCount;
@@ -51,18 +55,18 @@ public:
 
   constexpr ~Rc() noexcept { destroy(); }
 
-  constexpr T *operator->() noexcept { return &mBlock->elem; }
+  constexpr T *operator->() noexcept { return &*mBlock->elem; }
 
-  constexpr const T *operator->() const noexcept { return &mBlock->elem; }
+  constexpr const T *operator->() const noexcept { return &*mBlock->elem; }
 
-  constexpr T &operator*() noexcept { return mBlock->elem; }
+  constexpr T &operator*() noexcept { return *mBlock->elem; }
 
-  constexpr const T &operator*() const noexcept { return mBlock->elem; }
+  constexpr const T &operator*() const noexcept { return *mBlock->elem; }
 
 private:
   struct Block {
-    T elem;
-    size_t refCount;
+    Box<T> elem;
+    size_t refCount{1};
   };
 
   Block *mBlock;

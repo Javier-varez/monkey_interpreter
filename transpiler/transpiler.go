@@ -15,7 +15,7 @@ import (
 	"github.com/javier-varez/monkey_interpreter/ast"
 )
 
-//go:embed runtime/include/* runtime/templates/*
+//go:embed runtime/include/* runtime/templates/* runtime/src/* runtime/CMakeLists.txt
 var templateFS embed.FS
 
 type astNodeType string
@@ -46,6 +46,8 @@ const (
 
 const runtimeHeaderFile string = "runtime/include/runtime.h"
 const runtimeIncludeDir = "runtime/include"
+const runtimeSrcDir = "runtime/src"
+const runtimeCMakeListsTxt = "runtime/CMakeLists.txt"
 
 var funcs template.FuncMap = map[string]any{
 	"Transpile": Transpile,
@@ -129,33 +131,42 @@ func expandBuildEnv() string {
 	tmpDir, err := os.MkdirTemp("", "monkey_transpiler_*")
 	checkErr(err, "Unable to create temporary dir for monkey: %v", err)
 
-	includeDir := filepath.Join(tmpDir, "include")
-	checkErr(os.Mkdir(includeDir, 0755), "Unable to create include dir for monkey: %v", err)
+	expandFile := func(srcFilePath, dstFilePath string) {
+		srcFile, err := templateFS.Open(srcFilePath)
+		checkErr(err, "Unable to read file: %v", err)
+		defer srcFile.Close()
 
-	entries, err := templateFS.ReadDir(runtimeIncludeDir)
-	checkErr(err, "Unable to read runtime/include dir: %v", err)
+		dstFile, err := os.Create(dstFilePath)
+		checkErr(err, "Unable to open temp file: %v", err)
+		defer dstFile.Close()
 
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			srcFile, err := templateFS.Open(filepath.Join(runtimeIncludeDir, entry.Name()))
-			checkErr(err, "Unable to read runtime/include file: %v", err)
-			defer srcFile.Close()
+		_, err = io.Copy(dstFile, srcFile)
+		checkErr(err, "Unable to copy file: %v", err)
+	}
 
-			dstFile, err := os.Create(filepath.Join(includeDir, entry.Name()))
-			checkErr(err, "Unable to open temp include file: %v", err)
-			defer dstFile.Close()
+	expandDir := func(srcDir, dstDir string) {
+		checkErr(os.Mkdir(dstDir, 0755), "Unable to create dir for monkey: %v", err)
 
-			_, err = io.Copy(dstFile, srcFile)
-			checkErr(err, "Unable to copy include file: %v", err)
+		entries, err := templateFS.ReadDir(srcDir)
+		checkErr(err, "Unable to read dir: %v", err)
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				srcFilePath := filepath.Join(srcDir, entry.Name())
+				dstFilePath := filepath.Join(dstDir, entry.Name())
+				expandFile(srcFilePath, dstFilePath)
+			}
 		}
 	}
+
+	expandDir(runtimeIncludeDir, filepath.Join(tmpDir, "include"))
+	expandDir(runtimeSrcDir, filepath.Join(tmpDir, "src"))
+	expandFile(runtimeCMakeListsTxt, filepath.Join(tmpDir, "CMakeLists.txt"))
 
 	return tmpDir
 }
 
 func Compile(program string) string {
 	tmpDir := expandBuildEnv()
-	includeDir := filepath.Join(tmpDir, "include")
 
 	file, err := os.Create(filepath.Join(tmpDir, "main.cpp"))
 	if err != nil {
@@ -167,12 +178,18 @@ func Compile(program string) string {
 		log.Fatalf("Unable to write temporary cpp file: %v", err)
 	}
 
-	fileName := file.Name()
-	compiledFileName := fileName + ".o"
-
 	file.Close()
 
-	cmd := exec.Command("c++", "-O3", "-std=c++20", "-Wall", "-I", includeDir, "-o", compiledFileName, fileName)
+	buildDir := filepath.Join(tmpDir, "build")
+	cmd := exec.Command("cmake", "-S", tmpDir, "-B", buildDir, "-DCMAKE_BUILD_TYPE=release", "-G", "Ninja")
+	log.Printf("Running command %q\n", cmd.String())
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	if err = cmd.Run(); err != nil {
+		log.Fatalf("Error running cmake: %v", err)
+	}
+
+	cmd = exec.Command("cmake", "--build", buildDir)
 	log.Printf("Running command %q\n", cmd.String())
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
@@ -180,8 +197,10 @@ func Compile(program string) string {
 		log.Fatalf("Error compiling program: %v", err)
 	}
 
+	builtProgram := filepath.Join(buildDir, "main")
+
 	var buffer bytes.Buffer
-	cmd = exec.Command(compiledFileName)
+	cmd = exec.Command(builtProgram)
 	log.Printf("Running command %q\n", cmd.String())
 	cmd.Stderr = &buffer
 	cmd.Stdout = &buffer

@@ -2,6 +2,9 @@
 
 namespace runtime {
 
+using std::literals::operator""sv;
+using std::literals::operator""s;
+
 void _mainProgram() {
   {{range .Statements}}
     {{ Transpile . }}

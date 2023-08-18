@@ -6,8 +6,19 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_library(runtime INTERFACE)
-target_include_directories(runtime INTERFACE include)
+add_library(runtime STATIC
+    src/array.cpp
+    src/fn_args.cpp
+    src/function.cpp
+    src/object.cpp
+    src/var_args.cpp)
+
+target_include_directories(runtime PUBLIC include)
+
+add_executable(main main.cpp)
+target_link_libraries(main runtime)
+
+if (BUILD_TESTS)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -33,3 +44,5 @@ target_link_libraries(
 
 include(GoogleTest)
 gtest_discover_tests(runtime_test)
+
+endif()
