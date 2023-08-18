@@ -26,14 +26,18 @@ private:
 namespace detail {
 
 template <typename... Args> size_t countArgs(const Args &...args) {
-  const auto handleArg = [](const Object &arg) noexcept -> size_t {
-    if (arg.type == ObjectType::VARARGS) {
-      return arg.getVarArgs().len();
-    }
-    return 1;
-  };
+  if constexpr (sizeof...(args) == 0) {
+    return 0;
+  } else {
+    const auto handleArg = [](const Object &arg) noexcept -> size_t {
+      if (arg.type == ObjectType::VARARGS) {
+        return arg.getVarArgs().len();
+      }
+      return 1;
+    };
 
-  return (handleArg(args) + ...);
+    return (handleArg(args) + ...);
+  }
 }
 
 } // namespace detail

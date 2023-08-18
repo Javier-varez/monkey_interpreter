@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        compiler: ['clang++-14', 'g++']
+        compiler: ['g++']
 
     steps:
     - name: checkout
