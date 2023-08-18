@@ -16,4 +16,4 @@ inline Object rangeExprToArray(const Object start, const Object end) noexcept {
       Array::makeFromRange(start.getInteger(), end.getInteger()));
 }
 
-}
+} // namespace runtime

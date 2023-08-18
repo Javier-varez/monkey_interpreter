@@ -43,4 +43,4 @@ objectTypeToString(const ObjectType type) {
   fatal("Invalid object type: "sv, static_cast<int>(type));
 }
 
-}
+} // namespace runtime

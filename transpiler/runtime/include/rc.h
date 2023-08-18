@@ -18,8 +18,8 @@ public:
 
   template <detail::SameOrDerived<T> U, typename... Args>
   constexpr Rc(Marker<U>, Args &&...args) noexcept
-      : mBlock{
-            new Block{.elem{Box<T>{Marker<U>{}, std::forward<Args>(args)...}}}} {}
+      : mBlock{new Block{
+            .elem{Box<T>{Marker<U>{}, std::forward<Args>(args)...}}}} {}
 
   constexpr Rc(const Rc &other) noexcept : mBlock{other.mBlock} {
     ++mBlock->refCount;

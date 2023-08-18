@@ -13,12 +13,10 @@ VarArgs::VarArgs(const Iter begin, const Iter end) noexcept
 
 size_t VarArgs::len() const noexcept { return args.size(); }
 
-Object VarArgs::operator[](size_t idx) const noexcept {
-  return args[idx];
-}
+Object VarArgs::operator[](size_t idx) const noexcept { return args[idx]; }
 
 VarArgs::Iter VarArgs::begin() const noexcept { return args.begin(); }
 
 VarArgs::Iter VarArgs::end() const noexcept { return args.end(); }
 
-}
+} // namespace runtime

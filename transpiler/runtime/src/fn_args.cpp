@@ -13,4 +13,4 @@ Object FnArgs::operator[](size_t idx) const noexcept {
 FnArgs::Iter FnArgs::begin() const noexcept { return args.begin(); }
 FnArgs::Iter FnArgs::end() const noexcept { return args.end(); }
 
-}
+} // namespace runtime

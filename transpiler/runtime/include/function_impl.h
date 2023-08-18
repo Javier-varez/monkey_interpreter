@@ -1,9 +1,9 @@
 #pragma once
 
+#include <fn_args.h>
 #include <function.h>
 #include <object.h>
 #include <var_args.h>
-#include <fn_args.h>
 
 namespace runtime {
 
@@ -49,4 +49,4 @@ Object Function::CallableImpl<T, NumArgs, HasVarArgs>::call(
   }
 }
 
-}
+} // namespace runtime

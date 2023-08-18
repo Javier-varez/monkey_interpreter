@@ -44,4 +44,4 @@ template <Callable<void, typename LargeVec<Object>::Pusher> C>
 Array::Array(C callable, const size_t sizeHint) noexcept
     : data{callable, sizeHint} {}
 
-}
+} // namespace runtime

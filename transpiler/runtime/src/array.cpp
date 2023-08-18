@@ -55,4 +55,4 @@ Array Array::push(const Object &newObj) const noexcept {
   return Array{data.copyAppend(newObj)};
 }
 
-}
+} // namespace runtime

@@ -5,76 +5,75 @@
 namespace runtime {
 
 namespace {
-  struct Printer {
-    [[nodiscard]] std::string operator()(const Object::Nil &val) noexcept {
-      using std::literals::operator""s;
-      return "nil"s;
+struct Printer {
+  [[nodiscard]] std::string operator()(const Object::Nil &val) noexcept {
+    using std::literals::operator""s;
+    return "nil"s;
+  }
+
+  [[nodiscard]] std::string operator()(const std::string &val) noexcept {
+    return val;
+  }
+
+  [[nodiscard]] std::string operator()(const int64_t val) noexcept {
+    std::ostringstream stream;
+    stream << val;
+    return stream.str();
+  }
+
+  [[nodiscard]] std::string operator()(const bool val) noexcept {
+    using std::literals::operator""s;
+    if (val) {
+      return "true"s;
     }
 
-    [[nodiscard]] std::string operator()(const std::string &val) noexcept {
-      return val;
-    }
+    return "false"s;
+  }
 
-    [[nodiscard]] std::string operator()(const int64_t val) noexcept {
-      std::ostringstream stream;
-      stream << val;
-      return stream.str();
-    }
+  [[nodiscard]] std::string operator()(const Function &val) noexcept {
+    using std::literals::operator""s;
+    return "<Function>"s;
+  }
 
-    [[nodiscard]] std::string operator()(const bool val) noexcept {
-      using std::literals::operator""s;
-      if (val) {
-        return "true"s;
+  [[nodiscard]] std::string operator()(const Array &val) noexcept {
+    using std::literals::operator""sv;
+    std::ostringstream stream;
+    stream << '[';
+    bool firstIter = true;
+    for (const Object &obj : val) {
+      if (!firstIter) {
+        stream << ", "sv;
+      } else {
+        firstIter = false;
       }
-
-      return "false"s;
+      stream << obj.inspect();
     }
+    stream << ']';
+    return stream.str();
+  }
 
-    [[nodiscard]] std::string operator()(const Function &val) noexcept {
-      using std::literals::operator""s;
-      return "<Function>"s;
-    }
-
-    [[nodiscard]] std::string operator()(const Array &val) noexcept {
-      using std::literals::operator""sv;
-      std::ostringstream stream;
-      stream << '[';
-      bool firstIter = true;
-      for (const Object &obj : val) {
-        if (!firstIter) {
-          stream << ", "sv;
-        } else {
-          firstIter = false;
-        }
-        stream << obj.inspect();
+  [[nodiscard]] std::string operator()(const Rc<VarArgs> &val) noexcept {
+    using std::literals::operator""sv;
+    std::ostringstream stream;
+    stream << "VarArgs["sv;
+    bool firstIter = true;
+    for (const Object &obj : *val) {
+      if (!firstIter) {
+        stream << ", "sv;
+      } else {
+        firstIter = false;
       }
-      stream << ']';
-      return stream.str();
+      stream << obj.inspect();
     }
-
-    [[nodiscard]] std::string operator()(const Rc<VarArgs> &val) noexcept {
-      using std::literals::operator""sv;
-      std::ostringstream stream;
-      stream << "VarArgs["sv;
-      bool firstIter = true;
-      for (const Object &obj : *val) {
-        if (!firstIter) {
-          stream << ", "sv;
-        } else {
-          firstIter = false;
-        }
-        stream << obj.inspect();
-      }
-      stream << ']';
-      return stream.str();
-    }
-  };
-}  // namespace
+    stream << ']';
+    return stream.str();
+  }
+};
+} // namespace
 
 [[nodiscard]] std::string Object::inspect() const noexcept {
   return std::visit(Printer{}, val);
 }
-
 
 Object Object::makeInt(const int64_t val) noexcept {
   return Object{
@@ -111,7 +110,7 @@ Object Object::makeArray(const Array a) noexcept {
   };
 }
 
-Object Object::makeVarargs(const VarArgs& v) noexcept {
+Object Object::makeVarargs(const VarArgs &v) noexcept {
   return Object{
       .type = ObjectType::VARARGS,
       .val{Rc<VarArgs>{Marker<VarArgs>{}, v}},
@@ -282,4 +281,4 @@ Object operator>(const Object &lhs, const Object &rhs) noexcept {
         '\n');
 }
 
-}
+} // namespace runtime

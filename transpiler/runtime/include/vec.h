@@ -4,6 +4,7 @@
 #include <array>
 #include <functional>
 #include <type_traits>
+#include <variant>
 
 #include <callable.h>
 #include <rc.h>
@@ -263,7 +264,7 @@ private:
  * \brief Immutable vector implementation
  */
 template <typename T> class Vec {
-  constexpr static size_t SMALL_VEC_NUM_ELEMS = 6;
+  constexpr static size_t SMALL_VEC_NUM_ELEMS = 10;
 
   using Svec = SmallVec<T, SMALL_VEC_NUM_ELEMS>;
   using Lvec = LargeVec<T>;

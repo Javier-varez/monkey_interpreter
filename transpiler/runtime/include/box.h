@@ -1,8 +1,8 @@
 #ifndef _RUNTIME_BOX_H_
 #define _RUNTIME_BOX_H_
 
-#include <utility>
 #include <concepts>
+#include <utility>
 
 namespace runtime {
 
@@ -11,8 +11,7 @@ template <typename U, typename T>
 concept SameOrDerived = std::derived_from<U, T> || std::same_as<U, T>;
 }
 
-template <typename U>
-struct Marker final {};
+template <typename U> struct Marker final {};
 
 template <typename T> class Box final {
 public:

@@ -3,8 +3,8 @@
 #include <object.h>
 #include <var_args.h>
 
-#include <object_impl.h>
 #include <function_impl.h>
+#include <object_impl.h>
 
 namespace runtime {
 

@@ -10,4 +10,4 @@ Object Object::operator()(const Args &...args) const noexcept {
   return f(FnArgs{args...});
 }
 
-}
+} // namespace runtime

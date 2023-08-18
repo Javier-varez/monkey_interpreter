@@ -1,12 +1,11 @@
 #pragma once
 
-#include <utility>
 #include <iostream>
+#include <utility>
 
 namespace runtime {
 
-template <typename... Args>
-[[noreturn]] void fatal(Args &&...args) noexcept {
+template <typename... Args> [[noreturn]] void fatal(Args &&...args) noexcept {
   const auto print = []<typename T>(T &&arg) {
     std::cout << std::forward<T>(arg);
     return true;
@@ -26,4 +25,4 @@ constexpr void check(const bool condition, Args &&...args) noexcept {
   }
 }
 
-}
+} // namespace runtime

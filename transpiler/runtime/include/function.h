@@ -1,7 +1,7 @@
 #pragma once
 
-#include <rc.h>
 #include <box.h>
+#include <rc.h>
 
 namespace runtime {
 
@@ -38,4 +38,4 @@ private:
   Rc<Callable> callable;
 };
 
-}
+} // namespace runtime

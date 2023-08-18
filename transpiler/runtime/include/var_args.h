@@ -24,4 +24,4 @@ private:
   Vec<Object> args;
 };
 
-}
+} // namespace runtime

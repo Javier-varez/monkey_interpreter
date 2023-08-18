@@ -10,10 +10,10 @@
 #include <string_view>
 #include <variant>
 
-#include <object_type.h>
-#include <function.h>
 #include <array.h>
 #include <fatal.h>
+#include <function.h>
+#include <object_type.h>
 
 namespace runtime {
 
@@ -26,15 +26,15 @@ struct Object final {
   ObjectType type{ObjectType::NIL};
 
   // TODO: Map object
-  std::variant<Nil, int64_t, bool, std::string, Function, Array, Rc<VarArgs>> val{
-      Nil{}};
+  std::variant<Nil, int64_t, bool, std::string, Function, Array, Rc<VarArgs>>
+      val{Nil{}};
 
   static Object makeInt(const int64_t val) noexcept;
   static Object makeBool(const bool val) noexcept;
-  static Object makeString(const std::string_view sv) noexcept ;
-  static Object makeFunction(const Function f) noexcept ;
+  static Object makeString(const std::string_view sv) noexcept;
+  static Object makeFunction(const Function f) noexcept;
   static Object makeArray(const Array a) noexcept;
-  static Object makeVarargs(const VarArgs& v) noexcept;
+  static Object makeVarargs(const VarArgs &v) noexcept;
 
   int64_t getInteger() const noexcept;
   bool getBool() const noexcept;
@@ -60,4 +60,4 @@ Object operator!=(const Object &lhs, const Object &rhs) noexcept;
 Object operator<(const Object &lhs, const Object &rhs) noexcept;
 Object operator>(const Object &lhs, const Object &rhs) noexcept;
 
-}
+} // namespace runtime
