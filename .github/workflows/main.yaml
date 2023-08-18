@@ -24,3 +24,25 @@ jobs:
 
     - name: Test
       run: go test -count=1 -v ./...
+
+  cpp-tests:
+    runs-on: ubuntu-latest
+    strategy:
+    matrix:
+      compiler: ['clang++-14', 'g++']
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+
+    - name: Build with CMake
+      uses: lukka/run-cmake@v3
+      with:
+        cmakeListsOrSettingsJson: 'CMakeListsTxtAdvanced'
+        cmakeListsTxtPath: '${{ github.workspace }}/transpiler/runtime/CMakeLists.txt'
+        cmakeAppendedArgs: ''
+        buildDirectory: '${{ github.workspace }}/transpiler/runtime/build'
+      env:
+        CXX: ${{ matrix.compiler }}
+    - name: Execute tests
+      run: '${{ github.workspace }}/transpiler/runtime/build/runtime_test'
