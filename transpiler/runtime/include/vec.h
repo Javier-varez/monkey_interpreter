@@ -55,7 +55,7 @@ template <typename T> struct Span {
   Iterator<const T> end;
 };
 
-template <typename T> class Vec;
+template <typename T, size_t SMALL_VEC_NUM_ELEMS = 10> class Vec;
 
 template <typename T, size_t NUM_ELEMS> class SmallVec final {
 public:
@@ -263,8 +263,7 @@ private:
 /**
  * \brief Immutable vector implementation
  */
-template <typename T> class Vec {
-  constexpr static size_t SMALL_VEC_NUM_ELEMS = 10;
+template <typename T, size_t SMALL_VEC_NUM_ELEMS> class Vec {
 
   using Svec = SmallVec<T, SMALL_VEC_NUM_ELEMS>;
   using Lvec = LargeVec<T>;
