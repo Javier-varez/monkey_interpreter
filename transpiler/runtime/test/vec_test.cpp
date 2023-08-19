@@ -31,7 +31,7 @@ T makeRange(const size_t start, const size_t end) {
 }  // namespace
 
 TEST(Vec, ConstructEmpty) {
-  const runtime::Vec<int> v;
+  const runtime::Vec<int, 6> v;
 
   EXPECT_EQ(v.size(), 0);
   EXPECT_TRUE(v.isSmallVec());
@@ -39,7 +39,7 @@ TEST(Vec, ConstructEmpty) {
 
 TEST(Vec, MakeVec) {
   {
-    const auto v = runtime::Vec<int>::makeVec(1, 2, 3, 4, 5, 6);
+    const auto v = runtime::Vec<int, 6>::makeVec(1, 2, 3, 4, 5, 6);
     EXPECT_EQ(v.size(), 6);
     for (int i = 0; i < v.size(); i++) {
       EXPECT_EQ(v[i], i + 1);
@@ -48,7 +48,7 @@ TEST(Vec, MakeVec) {
   }
 
   {
-    const auto v = runtime::Vec<int>::makeVec(1, 2, 3, 4, 5, 6, 7);
+    const auto v = runtime::Vec<int, 6>::makeVec(1, 2, 3, 4, 5, 6, 7);
     EXPECT_EQ(v.size(), 7);
     for (int i = 0; i < v.size(); i++) {
       EXPECT_EQ(v[i], i + 1);
@@ -59,7 +59,7 @@ TEST(Vec, MakeVec) {
 
 TEST(Vec, Iterators) {
   {
-    const auto v = runtime::Vec<int>::makeVec(1, 2, 3, 4, 5, 6);
+    const auto v = runtime::Vec<int, 6>::makeVec(1, 2, 3, 4, 5, 6);
     EXPECT_EQ(v.size(), 6);
     int expected = 1;
     for (const int &val : v) {
@@ -71,7 +71,7 @@ TEST(Vec, Iterators) {
   }
 
   {
-    const auto v = runtime::Vec<int>::makeVec(1, 2, 3, 4, 5, 6, 7);
+    const auto v = runtime::Vec<int, 6>::makeVec(1, 2, 3, 4, 5, 6, 7);
     EXPECT_EQ(v.size(), 7);
     int expected = 1;
     for (const int &val : v) {
@@ -84,13 +84,13 @@ TEST(Vec, Iterators) {
 }
 
 TEST(Vec, CopyAppend) {
-  const runtime::Vec<int> v;
+  const runtime::Vec<int, 6> v;
 
   EXPECT_EQ(v.size(), 0);
   EXPECT_TRUE(v.isSmallVec());
 
   {
-    const runtime::Vec<int> v2{v.copyAppend(1, 2, 3)};
+    const runtime::Vec<int, 6> v2{v.copyAppend(1, 2, 3)};
     EXPECT_EQ(v2.size(), 3);
     EXPECT_EQ(v2[0], 1);
     EXPECT_EQ(v2[1], 2);
@@ -99,7 +99,7 @@ TEST(Vec, CopyAppend) {
   }
 
   {
-    const runtime::Vec<int> v2{v.copyAppend(1, 2, 3).copyAppend(1, 2, 3)};
+    const runtime::Vec<int, 6> v2{v.copyAppend(1, 2, 3).copyAppend(1, 2, 3)};
     EXPECT_EQ(v2.size(), 6);
     EXPECT_EQ(v2[0], 1);
     EXPECT_EQ(v2[1], 2);
@@ -111,7 +111,7 @@ TEST(Vec, CopyAppend) {
   }
 
   {
-    const runtime::Vec<int> v2{v.copyAppend(1, 2, 3).copyAppend(1, 2, 3, 4)};
+    const runtime::Vec<int, 6> v2{v.copyAppend(1, 2, 3).copyAppend(1, 2, 3, 4)};
     EXPECT_EQ(v2.size(), 7);
     EXPECT_EQ(v2[0], 1);
     EXPECT_EQ(v2[1], 2);
@@ -126,13 +126,13 @@ TEST(Vec, CopyAppend) {
 
 TEST(Vec, Copy) {
   {
-    const auto v = runtime::Vec<int>::makeVec(1, 2, 3, 4, 5);
+    const auto v = runtime::Vec<int, 6>::makeVec(1, 2, 3, 4, 5);
 
     EXPECT_EQ(v.size(), 5);
     EXPECT_TRUE(v.isSmallVec());
 
     {
-      const runtime::Vec<int> v2{v};
+      const runtime::Vec<int, 6> v2{v};
       EXPECT_EQ(v2.size(), 5);
       EXPECT_EQ(v2[0], 1);
       EXPECT_EQ(v2[1], 2);
@@ -147,13 +147,13 @@ TEST(Vec, Copy) {
   }
 
   {
-    const auto v = runtime::Vec<int>::makeVec(1, 2, 3, 4, 5, 6, 7);
+    const auto v = runtime::Vec<int, 6>::makeVec(1, 2, 3, 4, 5, 6, 7);
 
     EXPECT_EQ(v.size(), 7);
     EXPECT_FALSE(v.isSmallVec());
 
     {
-      const runtime::Vec<int> v2{v};
+      const runtime::Vec<int, 6> v2{v};
       EXPECT_EQ(v2.size(), 7);
       EXPECT_EQ(v2[0], 1);
       EXPECT_EQ(v2[1], 2);
@@ -173,13 +173,13 @@ TEST(Vec, Copy) {
 
 TEST(Vec, CopyAssign) {
   {
-    const auto v = runtime::Vec<int>::makeVec(1, 2, 3, 4, 5);
+    const auto v = runtime::Vec<int, 6>::makeVec(1, 2, 3, 4, 5);
 
     EXPECT_EQ(v.size(), 5);
     EXPECT_TRUE(v.isSmallVec());
 
     {
-      runtime::Vec<int> v2;
+      runtime::Vec<int, 6> v2;
       v2 = v;
 
       EXPECT_EQ(v2.size(), 5);
@@ -196,13 +196,13 @@ TEST(Vec, CopyAssign) {
   }
 
   {
-    const auto v = runtime::Vec<int>::makeVec(1, 2, 3, 4, 5, 6, 7);
+    const auto v = runtime::Vec<int, 6>::makeVec(1, 2, 3, 4, 5, 6, 7);
 
     EXPECT_EQ(v.size(), 7);
     EXPECT_FALSE(v.isSmallVec());
 
     {
-      runtime::Vec<int> v2;
+      runtime::Vec<int, 6> v2;
       v2 = v;
 
       EXPECT_EQ(v2.size(), 7);
@@ -240,7 +240,7 @@ TEST(Vec, MakeWithCallable) {
   }
 
   {
-    runtime::Vec vec = makeRange<runtime::Vec<int>>(0, 6);
+    runtime::Vec vec = makeRange<runtime::Vec<int, 6>>(0, 6);
     EXPECT_TRUE(vec.isSmallVec());
     EXPECT_EQ(vec.size(), 6);
     for (size_t i = 0; i < vec.size(); i++) {
@@ -249,7 +249,7 @@ TEST(Vec, MakeWithCallable) {
   }
 
   {
-    runtime::Vec vec = makeRange<runtime::Vec<int>>(0, 7);
+    runtime::Vec vec = makeRange<runtime::Vec<int, 6>>(0, 7);
     EXPECT_FALSE(vec.isSmallVec());
     EXPECT_EQ(vec.size(), 7);
     for (size_t i = 0; i < vec.size(); i++) {
