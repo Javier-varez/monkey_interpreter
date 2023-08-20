@@ -75,209 +75,173 @@ struct Printer {
   return std::visit(Printer{}, val);
 }
 
-Object Object::makeInt(const int64_t val) noexcept {
-  return Object{
-      .type = ObjectType::INTEGER,
-      .val{val},
-  };
-}
-
-Object Object::makeBool(const bool val) noexcept {
-  return Object{
-      .type = ObjectType::BOOLEAN,
-      .val{val},
-  };
-}
-
 Object Object::makeString(const std::string_view sv) noexcept {
   return Object{
-      .type = ObjectType::STRING,
       .val{std::string{sv}},
   };
 }
 
 Object Object::makeFunction(const Function f) noexcept {
   return Object{
-      .type = ObjectType::FUNCTION,
       .val{f},
   };
 }
 
 Object Object::makeArray(const Array a) noexcept {
   return Object{
-      .type = ObjectType::ARRAY,
       .val{a},
   };
 }
 
 Object Object::makeVarargs(const VarArgs &v) noexcept {
   return Object{
-      .type = ObjectType::VARARGS,
       .val{Rc<VarArgs>{Marker<VarArgs>{}, v}},
   };
 }
 
-int64_t Object::getInteger() const noexcept {
-  using std::literals::operator""sv;
-  check(type == ObjectType::INTEGER,
-        "Attempted to unwrap integer but object type was `"sv,
-        objectTypeToString(type), '`');
-  return std::get<int64_t>(val);
-}
-
-bool Object::getBool() const noexcept {
-  using std::literals::operator""sv;
-  check(type == ObjectType::BOOLEAN,
-        "Attempted to unwrap bool but object type was `"sv,
-        objectTypeToString(type), '`');
-  return std::get<bool>(val);
-}
-
 std::string Object::getString() const noexcept {
   using std::literals::operator""sv;
-  check(type == ObjectType::STRING,
+  check(is(Index::STRING),
         "Attempted to unwrap string but object type was `"sv,
-        objectTypeToString(type), '`');
+        type(), '`');
   return std::get<std::string>(val);
 }
 
 Array Object::getArray() const noexcept {
   using std::literals::operator""sv;
-  check(type == ObjectType::ARRAY,
+  check(is(Index::ARRAY),
         "Attempted to unwrap array but object type was `"sv,
-        objectTypeToString(type), '`');
+        type(), '`');
   return std::get<Array>(val);
 }
 
 VarArgs Object::getVarArgs() const noexcept {
   using std::literals::operator""sv;
-  check(type == ObjectType::VARARGS,
+  check(is(Index::VARARGS),
         "Attempted to unwrap varargs but object type was `"sv,
-        objectTypeToString(type), '`');
+        type(), '`');
   return *std::get<Rc<VarArgs>>(val);
 }
 
 Object Object::operator-() const noexcept {
   using std::literals::operator""sv;
-  check(type == ObjectType::INTEGER,
+  check(is(Index::INTEGER),
         "Attempted to execute prefix operator '-' on a "sv,
-        objectTypeToString(type));
+        type());
   return Object::makeInt(-getInteger());
 }
 
 Object Object::operator!() const noexcept {
   using std::literals::operator""sv;
-  check(type == ObjectType::BOOLEAN,
+  check(is(Index::BOOLEAN),
         "Attempted to execute prefix operator '!' on a "sv,
-        objectTypeToString(type));
+        type());
   return Object::makeBool(!getBool());
 }
 
 Object Object::operator[](Object index) const noexcept {
   using std::literals::operator""sv;
-  if (type == ObjectType::ARRAY) {
-    check(index.type == ObjectType::INTEGER,
-          "Index to array is not an integer"sv);
+  if (is(Index::ARRAY)) {
+    check(index.is(Index::INTEGER),
+          "Index to array is not an integer: "sv, type());
     return getArray()[index.getInteger()];
   }
 
   fatal("Attempted to use index operator on an unsupported object: "sv,
-        objectTypeToString(type));
+        type());
 }
 
 Object operator+(const Object &lhs, const Object &rhs) noexcept {
   using std::literals::operator""sv;
-  if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
+  if (lhs.is(Object::Index::INTEGER) && rhs.is(Object::Index::INTEGER)) {
     return Object::makeInt(int64_t{lhs.getInteger() + rhs.getInteger()});
-  } else if (lhs.type == ObjectType::STRING && rhs.type == ObjectType::STRING) {
+  } else if (lhs.is(Object::Index::STRING) && rhs.is(Object::Index::STRING)) {
     return Object::makeString(lhs.getString() + rhs.getString());
   }
 
   fatal("Operator `+` is undefined for operands `"sv,
-        objectTypeToString(lhs.type), "` and `"sv, objectTypeToString(rhs.type),
+        lhs.type(), "` and `"sv, rhs.type(),
         '\n');
 }
 
 Object operator-(const Object &lhs, const Object &rhs) noexcept {
   using std::literals::operator""sv;
-  if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
+  if (lhs.is(Object::Index::INTEGER) && rhs.is(Object::Index::INTEGER)) {
     return Object::makeInt(int64_t{lhs.getInteger() - rhs.getInteger()});
   }
 
   fatal("Operator `-` is undefined for operands `"sv,
-        objectTypeToString(lhs.type), "` and `"sv, objectTypeToString(rhs.type),
+        lhs.type(), "` and `"sv, rhs.type(),
         '\n');
 }
 
 Object operator*(const Object &lhs, const Object &rhs) noexcept {
   using std::literals::operator""sv;
-  if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
+  if (lhs.is(Object::Index::INTEGER) && rhs.is(Object::Index::INTEGER)) {
     return Object::makeInt(int64_t{lhs.getInteger() * rhs.getInteger()});
   }
 
   fatal("Operator `*` is undefined for operands `"sv,
-        objectTypeToString(lhs.type), "` and `"sv, objectTypeToString(rhs.type),
+        lhs.type(), "` and `"sv, rhs.type(),
         '\n');
 }
 
 Object operator/(const Object &lhs, const Object &rhs) noexcept {
   using std::literals::operator""sv;
-  if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
+  if (lhs.is(Object::Index::INTEGER) && rhs.is(Object::Index::INTEGER)) {
     return Object::makeInt(int64_t{lhs.getInteger() / rhs.getInteger()});
   }
 
   fatal("Operator `/` is undefined for operands `"sv,
-        objectTypeToString(lhs.type), "` and `"sv, objectTypeToString(rhs.type),
+        lhs.type(), "` and `"sv, rhs.type(),
         '\n');
 }
 
 Object operator==(const Object &lhs, const Object &rhs) noexcept {
   using std::literals::operator""sv;
-  if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
+  if (lhs.is(Object::Index::INTEGER) && rhs.is(Object::Index::INTEGER)) {
     return Object::makeBool(lhs.getInteger() == rhs.getInteger());
-  } else if (lhs.type == ObjectType::BOOLEAN &&
-             rhs.type == ObjectType::BOOLEAN) {
+  } else if (lhs.is(Object::Index::BOOLEAN) && rhs.is(Object::Index::BOOLEAN)) {
     return Object::makeBool(lhs.getBool() == rhs.getBool());
   }
 
   fatal("Operator `==` is undefined for operands `"sv,
-        objectTypeToString(lhs.type), "` and `"sv, objectTypeToString(rhs.type),
+        lhs.type(), "` and `"sv, rhs.type(),
         '\n');
 }
 
 Object operator!=(const Object &lhs, const Object &rhs) noexcept {
   using std::literals::operator""sv;
-  if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
+  if (lhs.is(Object::Index::INTEGER) && rhs.is(Object::Index::INTEGER)) {
     return Object::makeBool(lhs.getInteger() != rhs.getInteger());
-  } else if (lhs.type == ObjectType::BOOLEAN &&
-             rhs.type == ObjectType::BOOLEAN) {
+  } else if (lhs.is(Object::Index::BOOLEAN) && rhs.is(Object::Index::BOOLEAN)) {
     return Object::makeBool(lhs.getBool() != rhs.getBool());
   }
 
   fatal("Operator `!=` is undefined for operands `"sv,
-        objectTypeToString(lhs.type), "` and `"sv, objectTypeToString(rhs.type),
+        lhs.type(), "` and `"sv, rhs.type(),
         '\n');
 }
 
 Object operator<(const Object &lhs, const Object &rhs) noexcept {
   using std::literals::operator""sv;
-  if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
+  if (lhs.is(Object::Index::INTEGER) && rhs.is(Object::Index::INTEGER)) {
     return Object::makeBool(lhs.getInteger() < rhs.getInteger());
   }
 
   fatal("Operator `<` is undefined for operands `"sv,
-        objectTypeToString(lhs.type), "` and `"sv, objectTypeToString(rhs.type),
+        lhs.type(), "` and `"sv, rhs.type(),
         '\n');
 }
 
 Object operator>(const Object &lhs, const Object &rhs) noexcept {
   using std::literals::operator""sv;
-  if (lhs.type == ObjectType::INTEGER && rhs.type == ObjectType::INTEGER) {
+  if (lhs.is(Object::Index::INTEGER) && rhs.is(Object::Index::INTEGER)) {
     return Object::makeBool(lhs.getInteger() > rhs.getInteger());
   }
 
   fatal("Operator `>` is undefined for operands `"sv,
-        objectTypeToString(lhs.type), "` and `"sv, objectTypeToString(rhs.type),
+        lhs.type(), "` and `"sv, rhs.type(),
         '\n');
 }
 

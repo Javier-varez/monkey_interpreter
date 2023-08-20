@@ -7,10 +7,9 @@ namespace runtime {
 
 inline Object rangeExprToArray(const Object start, const Object end) noexcept {
   using std::literals::operator""sv;
-  check(start.type == ObjectType::INTEGER && end.type == ObjectType::INTEGER,
+  check(start.is(Object::Index::INTEGER) && end.is(Object::Index::INTEGER) ,
         "Cannot construct range expression from arguments of type "sv,
-        objectTypeToString(start.type), " and "sv,
-        objectTypeToString(end.type));
+        start.type(), " and "sv, end.type());
 
   return Object::makeArray(
       Array::makeFromRange(start.getInteger(), end.getInteger()));
