@@ -29,8 +29,7 @@ template <typename... Args> Object puts(Args &&...args) noexcept {
 inline Object toArray(Object object) noexcept {
   using std::literals::operator""sv;
   check(object.is(Object::Index::VARARGS),
-        "Unsupported object passed to toArray: "sv,
-        object.type());
+        "Unsupported object passed to toArray: "sv, object.type());
 
   const VarArgs varargs = object.getVarArgs();
   return object.makeArray(Array::makeFromIters(varargs.begin(), varargs.end()));
@@ -38,8 +37,7 @@ inline Object toArray(Object object) noexcept {
 
 inline Object len(Object object) noexcept {
   using std::literals::operator""sv;
-  check(object.is(Object::Index::ARRAY),
-        "Unsupported object passed to len: "sv,
+  check(object.is(Object::Index::ARRAY), "Unsupported object passed to len: "sv,
         object.type());
 
   const Array arr = object.getArray();
@@ -49,8 +47,7 @@ inline Object len(Object object) noexcept {
 inline Object first(Object object) noexcept {
   using std::literals::operator""sv;
   check(object.is(Object::Index::ARRAY),
-        "Unsupported object passed to first: "sv,
-        object.type());
+        "Unsupported object passed to first: "sv, object.type());
 
   const Array arr = object.getArray();
   const size_t length = arr.len();
@@ -63,8 +60,7 @@ inline Object first(Object object) noexcept {
 inline Object last(Object object) noexcept {
   using std::literals::operator""sv;
   check(object.is(Object::Index::ARRAY),
-        "Unsupported object passed to first: "sv,
-        object.type());
+        "Unsupported object passed to first: "sv, object.type());
 
   const Array arr = object.getArray();
   const size_t length = arr.len();
@@ -76,8 +72,7 @@ inline Object last(Object object) noexcept {
 inline Object rest(Object object) noexcept {
   using std::literals::operator""sv;
   check(object.is(Object::Index::ARRAY),
-        "Unsupported object passed to first: "sv,
-        object.type());
+        "Unsupported object passed to first: "sv, object.type());
 
   const Array arr = object.getArray();
   const size_t length = arr.len();
@@ -89,8 +84,7 @@ inline Object rest(Object object) noexcept {
 inline Object push(Object object, Object newObj) noexcept {
   using std::literals::operator""sv;
   check(object.is(Object::Index::ARRAY),
-        "Unsupported object passed to first: "sv,
-        object.type());
+        "Unsupported object passed to first: "sv, object.type());
 
   const auto &arr = object.getArray();
   auto newArray = arr.push(newObj);
