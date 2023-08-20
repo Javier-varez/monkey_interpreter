@@ -30,7 +30,7 @@ template <typename... Args> size_t countArgs(const Args &...args) {
     return 0;
   } else {
     const auto handleArg = [](const Object &arg) noexcept -> size_t {
-      if (arg.type == ObjectType::VARARGS) {
+      if (arg.is(Object::Index::VARARGS)) {
         return arg.getVarArgs().len();
       }
       return 1;
@@ -48,7 +48,7 @@ FnArgs::FnArgs(const Args &...args) noexcept
           [args...](auto pusher) noexcept -> void {
             const auto handleArg = [pusher]<typename T>(const T arg) {
               static_assert(std::same_as<T, Object>, "Invalid arg type");
-              if (arg.type == ObjectType::VARARGS) {
+              if (arg.is(Object::Index::VARARGS)) {
                 // Varargs are unwrapped here in the call site
                 for (const Object &inner : arg.getVarArgs()) {
                   pusher.push(inner);
