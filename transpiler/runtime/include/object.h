@@ -22,21 +22,13 @@ struct Object final {
   // Marker type just to make sure nil is represented by the variant
   struct Nil {};
 
-  constexpr static std::array OBJECT_TYPE_NAMES {
-    []() {
-      using std::literals::operator""sv;
-      return std::array{
-      "NIL"sv,
-      "INTEGER"sv,
-      "BOOLEAN"sv,
-      "STRING"sv,
-      "FUNCTION"sv,
-      "ARRAY"sv,
-      "VARARGS"sv,
-      "MAP"sv,
-      };
-    }()
-  };
+  constexpr static std::array OBJECT_TYPE_NAMES{[]() {
+    using std::literals::operator""sv;
+    return std::array{
+        "NIL"sv,      "INTEGER"sv, "BOOLEAN"sv, "STRING"sv,
+        "FUNCTION"sv, "ARRAY"sv,   "VARARGS"sv, "MAP"sv,
+    };
+  }()};
 
   enum class Index : size_t {
     NIL,
@@ -77,7 +69,9 @@ struct Object final {
     return OBJECT_TYPE_NAMES[val.index()];
   }
 
-  constexpr inline int64_t getInteger() const noexcept { return std::get<int64_t>(val); }
+  constexpr inline int64_t getInteger() const noexcept {
+    return std::get<int64_t>(val);
+  }
   constexpr inline bool getBool() const noexcept { return std::get<bool>(val); }
   std::string getString() const noexcept;
   Array getArray() const noexcept;

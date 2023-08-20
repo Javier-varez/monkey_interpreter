@@ -101,16 +101,14 @@ Object Object::makeVarargs(const VarArgs &v) noexcept {
 
 std::string Object::getString() const noexcept {
   using std::literals::operator""sv;
-  check(is(Index::STRING),
-        "Attempted to unwrap string but object type was `"sv,
+  check(is(Index::STRING), "Attempted to unwrap string but object type was `"sv,
         type(), '`');
   return std::get<std::string>(val);
 }
 
 Array Object::getArray() const noexcept {
   using std::literals::operator""sv;
-  check(is(Index::ARRAY),
-        "Attempted to unwrap array but object type was `"sv,
+  check(is(Index::ARRAY), "Attempted to unwrap array but object type was `"sv,
         type(), '`');
   return std::get<Array>(val);
 }
@@ -118,23 +116,20 @@ Array Object::getArray() const noexcept {
 VarArgs Object::getVarArgs() const noexcept {
   using std::literals::operator""sv;
   check(is(Index::VARARGS),
-        "Attempted to unwrap varargs but object type was `"sv,
-        type(), '`');
+        "Attempted to unwrap varargs but object type was `"sv, type(), '`');
   return *std::get<Rc<VarArgs>>(val);
 }
 
 Object Object::operator-() const noexcept {
   using std::literals::operator""sv;
-  check(is(Index::INTEGER),
-        "Attempted to execute prefix operator '-' on a "sv,
+  check(is(Index::INTEGER), "Attempted to execute prefix operator '-' on a "sv,
         type());
   return Object::makeInt(-getInteger());
 }
 
 Object Object::operator!() const noexcept {
   using std::literals::operator""sv;
-  check(is(Index::BOOLEAN),
-        "Attempted to execute prefix operator '!' on a "sv,
+  check(is(Index::BOOLEAN), "Attempted to execute prefix operator '!' on a "sv,
         type());
   return Object::makeBool(!getBool());
 }
@@ -142,13 +137,12 @@ Object Object::operator!() const noexcept {
 Object Object::operator[](Object index) const noexcept {
   using std::literals::operator""sv;
   if (is(Index::ARRAY)) {
-    check(index.is(Index::INTEGER),
-          "Index to array is not an integer: "sv, type());
+    check(index.is(Index::INTEGER), "Index to array is not an integer: "sv,
+          type());
     return getArray()[index.getInteger()];
   }
 
-  fatal("Attempted to use index operator on an unsupported object: "sv,
-        type());
+  fatal("Attempted to use index operator on an unsupported object: "sv, type());
 }
 
 Object operator+(const Object &lhs, const Object &rhs) noexcept {
@@ -159,9 +153,8 @@ Object operator+(const Object &lhs, const Object &rhs) noexcept {
     return Object::makeString(lhs.getString() + rhs.getString());
   }
 
-  fatal("Operator `+` is undefined for operands `"sv,
-        lhs.type(), "` and `"sv, rhs.type(),
-        '\n');
+  fatal("Operator `+` is undefined for operands `"sv, lhs.type(), "` and `"sv,
+        rhs.type(), '\n');
 }
 
 Object operator-(const Object &lhs, const Object &rhs) noexcept {
@@ -170,9 +163,8 @@ Object operator-(const Object &lhs, const Object &rhs) noexcept {
     return Object::makeInt(int64_t{lhs.getInteger() - rhs.getInteger()});
   }
 
-  fatal("Operator `-` is undefined for operands `"sv,
-        lhs.type(), "` and `"sv, rhs.type(),
-        '\n');
+  fatal("Operator `-` is undefined for operands `"sv, lhs.type(), "` and `"sv,
+        rhs.type(), '\n');
 }
 
 Object operator*(const Object &lhs, const Object &rhs) noexcept {
@@ -181,9 +173,8 @@ Object operator*(const Object &lhs, const Object &rhs) noexcept {
     return Object::makeInt(int64_t{lhs.getInteger() * rhs.getInteger()});
   }
 
-  fatal("Operator `*` is undefined for operands `"sv,
-        lhs.type(), "` and `"sv, rhs.type(),
-        '\n');
+  fatal("Operator `*` is undefined for operands `"sv, lhs.type(), "` and `"sv,
+        rhs.type(), '\n');
 }
 
 Object operator/(const Object &lhs, const Object &rhs) noexcept {
@@ -192,9 +183,8 @@ Object operator/(const Object &lhs, const Object &rhs) noexcept {
     return Object::makeInt(int64_t{lhs.getInteger() / rhs.getInteger()});
   }
 
-  fatal("Operator `/` is undefined for operands `"sv,
-        lhs.type(), "` and `"sv, rhs.type(),
-        '\n');
+  fatal("Operator `/` is undefined for operands `"sv, lhs.type(), "` and `"sv,
+        rhs.type(), '\n');
 }
 
 Object operator==(const Object &lhs, const Object &rhs) noexcept {
@@ -205,9 +195,8 @@ Object operator==(const Object &lhs, const Object &rhs) noexcept {
     return Object::makeBool(lhs.getBool() == rhs.getBool());
   }
 
-  fatal("Operator `==` is undefined for operands `"sv,
-        lhs.type(), "` and `"sv, rhs.type(),
-        '\n');
+  fatal("Operator `==` is undefined for operands `"sv, lhs.type(), "` and `"sv,
+        rhs.type(), '\n');
 }
 
 Object operator!=(const Object &lhs, const Object &rhs) noexcept {
@@ -218,9 +207,8 @@ Object operator!=(const Object &lhs, const Object &rhs) noexcept {
     return Object::makeBool(lhs.getBool() != rhs.getBool());
   }
 
-  fatal("Operator `!=` is undefined for operands `"sv,
-        lhs.type(), "` and `"sv, rhs.type(),
-        '\n');
+  fatal("Operator `!=` is undefined for operands `"sv, lhs.type(), "` and `"sv,
+        rhs.type(), '\n');
 }
 
 Object operator<(const Object &lhs, const Object &rhs) noexcept {
@@ -229,9 +217,8 @@ Object operator<(const Object &lhs, const Object &rhs) noexcept {
     return Object::makeBool(lhs.getInteger() < rhs.getInteger());
   }
 
-  fatal("Operator `<` is undefined for operands `"sv,
-        lhs.type(), "` and `"sv, rhs.type(),
-        '\n');
+  fatal("Operator `<` is undefined for operands `"sv, lhs.type(), "` and `"sv,
+        rhs.type(), '\n');
 }
 
 Object operator>(const Object &lhs, const Object &rhs) noexcept {
@@ -240,9 +227,8 @@ Object operator>(const Object &lhs, const Object &rhs) noexcept {
     return Object::makeBool(lhs.getInteger() > rhs.getInteger());
   }
 
-  fatal("Operator `>` is undefined for operands `"sv,
-        lhs.type(), "` and `"sv, rhs.type(),
-        '\n');
+  fatal("Operator `>` is undefined for operands `"sv, lhs.type(), "` and `"sv,
+        rhs.type(), '\n');
 }
 
 } // namespace runtime

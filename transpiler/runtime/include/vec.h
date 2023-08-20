@@ -198,7 +198,9 @@ public:
   struct Pusher final {
     LargeVec &vec;
 
-    constexpr void push(const T &item) const noexcept { vec.mInner->push_back(item); }
+    constexpr void push(const T &item) const noexcept {
+      vec.mInner->push_back(item);
+    }
 
     void push(T &&item) const noexcept {
       vec.mInner->push_back(std::move(item));
@@ -284,7 +286,8 @@ public:
     }
   }
 
-  template <typename... Args> constexpr static Vec makeVec(Args &&...args) noexcept {
+  template <typename... Args>
+  constexpr static Vec makeVec(Args &&...args) noexcept {
     const size_t count = detail::countElems<T>(std::forward<Args>(args)...);
     if (count > SMALL_VEC_NUM_ELEMS) {
       // Construct new refcounted
