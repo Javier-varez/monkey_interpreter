@@ -1,1 +1,1 @@
-Object::makeInt({{ .Value }})
+runtime::Object::makeInt({{ .Value }})

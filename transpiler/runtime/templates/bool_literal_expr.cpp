@@ -1,1 +1,1 @@
-Object::makeBool({{.Value}})
+runtime::Object::makeBool({{ .Value }})

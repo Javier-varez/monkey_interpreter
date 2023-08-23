@@ -1,14 +1,14 @@
 #pragma once
 
-#include <object.h>
-#include <var_args.h>
-
 #include <function_impl.h>
+#include <object.h>
 #include <object_impl.h>
+#include <var_args.h>
 
 namespace runtime {
 
-template <typename... Args> Object puts(Args &&...args) noexcept {
+template <typename... Args>
+Object puts(Args &&...args) noexcept {
   const auto print = []<typename T>(T &&arg) { std::cout << arg.inspect(); };
 
   const auto expandVarArgs = []<typename C, typename T>(C callable, T &&arg) {
@@ -91,4 +91,12 @@ inline Object push(Object object, Object newObj) noexcept {
   return Object::makeArray(newArray);
 }
 
-} // namespace runtime
+}  // namespace runtime
+//
+using runtime::first;
+using runtime::last;
+using runtime::len;
+using runtime::push;
+using runtime::puts;
+using runtime::rest;
+using runtime::toArray;
