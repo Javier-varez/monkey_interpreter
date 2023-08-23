@@ -1,6 +1,6 @@
 {{if .Expr}}
 return {{Transpile .Expr}};
 {{else}}
-return Object{};
+return runtime::Object{};
 {{end}}
-Object{};
+runtime::Object{};

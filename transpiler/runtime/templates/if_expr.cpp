@@ -1,5 +1,5 @@
 ({
-  Object _if_expr_result{};
+  runtime::Object _if_expr_result{};
 
   if (({{Transpile .Condition}}).getBool()) {
     _if_expr_result = ({
