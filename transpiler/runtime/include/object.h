@@ -1,5 +1,9 @@
 #pragma once
 
+#include <array.h>
+#include <fatal.h>
+#include <function.h>
+
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
@@ -10,13 +14,10 @@
 #include <string_view>
 #include <variant>
 
-#include <array.h>
-#include <fatal.h>
-#include <function.h>
-
 namespace runtime {
 
 class VarArgs;
+class HashMap;
 
 struct Object final {
   // Marker type just to make sure nil is represented by the variant
@@ -38,11 +39,12 @@ struct Object final {
     FUNCTION,
     ARRAY,
     VARARGS,
+    HASH_MAP,
   };
 
-  // TODO: Map object
-  std::variant<Nil, int64_t, bool, std::string, Function, Array, Rc<VarArgs>>
-      val{Nil{}};
+  using Inner = std::variant<Nil, int64_t, bool, std::string, Function, Array,
+                             Rc<VarArgs>, Rc<HashMap>>;
+  Inner val{Nil{}};
 
   static inline Object makeInt(const int64_t val) noexcept {
     return Object{
@@ -60,6 +62,7 @@ struct Object final {
   static Object makeFunction(const Function f) noexcept;
   static Object makeArray(const Array a) noexcept;
   static Object makeVarargs(const VarArgs &v) noexcept;
+  static Object makeHashMap(const HashMap &h) noexcept;
 
   constexpr inline bool is(const Index idx) const noexcept {
     return val.index() == static_cast<size_t>(idx);
@@ -76,6 +79,7 @@ struct Object final {
   std::string getString() const noexcept;
   Array getArray() const noexcept;
   VarArgs getVarArgs() const noexcept;
+  HashMap getHashMap() const noexcept;
 
   [[nodiscard]] std::string inspect() const noexcept;
 
@@ -84,6 +88,11 @@ struct Object final {
   Object operator-() const noexcept;
   Object operator!() const noexcept;
   Object operator[](Object index) const noexcept;
+
+  [[nodiscard]] bool equals(const Object &other) const noexcept;
+  [[nodiscard]] std::int64_t hash() const noexcept;
+
+  [[nodiscard]] static const Object &nil() noexcept;
 };
 
 Object operator+(const Object &lhs, const Object &rhs) noexcept;
@@ -95,4 +104,4 @@ Object operator!=(const Object &lhs, const Object &rhs) noexcept;
 Object operator<(const Object &lhs, const Object &rhs) noexcept;
 Object operator>(const Object &lhs, const Object &rhs) noexcept;
 
-} // namespace runtime
+}  // namespace runtime

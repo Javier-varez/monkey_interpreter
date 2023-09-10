@@ -1,9 +1,8 @@
 #include <array.h>
-
-#include <var_args.h>
-
 #include <callable.h>
+#include <hash_map.h>
 #include <object.h>
+#include <var_args.h>
 
 namespace runtime {
 
@@ -20,8 +19,7 @@ Array::Iter Array::end() const noexcept { return data.end(); }
 
 Array Array::makeFromRange(int64_t start, int64_t end) noexcept {
   const auto abs = [](auto arg) {
-    if (arg < 0)
-      return -arg;
+    if (arg < 0) return -arg;
     return arg;
   };
   const size_t sizeHint = abs(end - start);
@@ -56,4 +54,4 @@ Array Array::push(const Object &newObj) const noexcept {
   return Array{data.copyAppend(newObj)};
 }
 
-} // namespace runtime
+}  // namespace runtime

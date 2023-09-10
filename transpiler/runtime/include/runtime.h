@@ -1,7 +1,9 @@
 #pragma once
 
 #include <builtins.h>
+#include <hash_map.h>
 #include <object.h>
+#include <var_args.h>
 
 namespace runtime {
 
@@ -15,4 +17,4 @@ inline Object rangeExprToArray(const Object start, const Object end) noexcept {
       Array::makeFromRange(start.getInteger(), end.getInteger()));
 }
 
-} // namespace runtime
+}  // namespace runtime

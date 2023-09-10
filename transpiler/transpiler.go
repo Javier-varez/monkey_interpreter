@@ -21,7 +21,6 @@ var templateFS embed.FS
 type astNodeType string
 
 var templates map[astNodeType]*template.Template = map[astNodeType]*template.Template{}
-var preamble string
 
 const (
 	PROGRAM                     = astNodeType("PROGRAM")
@@ -42,9 +41,9 @@ const (
 	INDEX_OPERATOR_EXPRESSION   = astNodeType("INDEX_OPERATOR_EXPRESSION")
 	VAR_ARGS_LITERAL_EXPRESSION = astNodeType("VAR_ARGS_LITERAL_EXPRESSION")
 	RANGE_EXPRESSION            = astNodeType("RANGE_EXPRESSION")
+	MAP_LITERAL_EXPRESSION      = astNodeType("MAP_LITERAL_EXPRESSION")
 )
 
-const runtimeHeaderFile string = "runtime/include/runtime.h"
 const runtimeIncludeDir = "runtime/include"
 const runtimeSrcDir = "runtime/src"
 const runtimeCMakeListsTxt = "runtime/CMakeLists.txt"
@@ -62,12 +61,6 @@ func loadTemplate(nodeType astNodeType, filename string) {
 }
 
 func init() {
-	data, err := templateFS.ReadFile(runtimeHeaderFile)
-	if err != nil {
-		log.Fatalf("Unable to read template file: %q", runtimeHeaderFile)
-	}
-	preamble = string(data)
-
 	loadTemplate(PROGRAM, "runtime/templates/program.cpp")
 	loadTemplate(LET_STATEMENT, "runtime/templates/let_statement.cpp")
 	loadTemplate(EXPRESSION_STATEMENT, "runtime/templates/expression_statement.cpp")
@@ -86,6 +79,7 @@ func init() {
 	loadTemplate(INDEX_OPERATOR_EXPRESSION, "runtime/templates/index_operator_expr.cpp")
 	loadTemplate(VAR_ARGS_LITERAL_EXPRESSION, "runtime/templates/var_args_literal_expr.cpp")
 	loadTemplate(RANGE_EXPRESSION, "runtime/templates/range_expr.cpp")
+	loadTemplate(MAP_LITERAL_EXPRESSION, "runtime/templates/map_literal_expr.cpp")
 }
 
 var indent int = 0
@@ -250,6 +244,8 @@ func Transpile(node ast.Node) string {
 		return execTemplate(VAR_ARGS_LITERAL_EXPRESSION, node)
 	case *ast.RangeExpr:
 		return execTemplate(RANGE_EXPRESSION, node)
+	case *ast.MapLiteralExpr:
+		return execTemplate(MAP_LITERAL_EXPRESSION, node)
 	default:
 		log.Fatalf("Unsupported node type: %T\n", node)
 	}
