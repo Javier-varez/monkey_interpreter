@@ -1,3 +1,4 @@
+#include <hash_map.h>
 #include <var_args.h>
 
 namespace runtime {
@@ -19,4 +20,4 @@ VarArgs::Iter VarArgs::begin() const noexcept { return args.begin(); }
 
 VarArgs::Iter VarArgs::end() const noexcept { return args.end(); }
 
-} // namespace runtime
+}  // namespace runtime

@@ -267,3 +267,20 @@ func TestArrayBuiltins(t *testing.T) {
 		}
 	}
 }
+
+func TestMap(t *testing.T) {
+	test := []struct {
+		input          string
+		expectedOutput string
+	}{
+		{`puts({123: 234}[123])`, "234\n"},
+		{`puts({124: 234}[123])`, "nil\n"},
+	}
+
+	for i, tt := range test {
+		out := testTranspile(tt.input)
+		if out != tt.expectedOutput {
+			t.Errorf("[%d] Test failed. expected %q, got %q", i, tt.expectedOutput, out)
+		}
+	}
+}

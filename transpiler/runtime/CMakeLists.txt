@@ -11,7 +11,8 @@ add_library(runtime STATIC
     src/fn_args.cpp
     src/function.cpp
     src/object.cpp
-    src/var_args.cpp)
+    src/var_args.cpp
+    src/hash_map.cpp)
 
 target_include_directories(runtime PUBLIC include)
 
