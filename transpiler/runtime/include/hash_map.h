@@ -3,6 +3,8 @@
 #include <object.h>
 #include <rc.h>
 
+#include <functional>
+
 namespace runtime {
 
 class HashMap final {
@@ -22,11 +24,13 @@ class HashMap final {
 
   const Object& operator[](const Object& key) const noexcept;
 
+  void forEach(const std::function<void(const Object&, const Object&)>&
+                   callable) const noexcept;
+
   ~HashMap() noexcept;
 
  private:
   class Impl;
-
   Rc<Impl> mImpl;
 
   void pushKvPair(const KvPair& pair) noexcept;

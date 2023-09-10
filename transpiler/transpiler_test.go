@@ -275,6 +275,8 @@ func TestMap(t *testing.T) {
 	}{
 		{`puts({123: 234}[123])`, "234\n"},
 		{`puts({124: 234}[123])`, "nil\n"},
+		{`puts({124: 234, 234: 33, "true": false}["true"])`, "false\n"},
+		{`puts({124: 234, 234: 33, "true": false, true: 654}[true])`, "654\n"},
 	}
 
 	for i, tt := range test {
