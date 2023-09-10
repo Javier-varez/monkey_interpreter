@@ -70,8 +70,22 @@ struct Printer {
   }
 
   [[nodiscard]] std::string operator()(const Rc<HashMap> &val) noexcept {
-    using std::literals::operator""s;
-    return "HashMap"s;
+    using std::literals::operator""sv;
+    std::ostringstream stream;
+    stream << "{"sv;
+    bool firstIter = true;
+    val->forEach([&firstIter, &stream](const Object &k, const Object &v) {
+      if (!firstIter) {
+        stream << ", "sv;
+      } else {
+        firstIter = false;
+      }
+      stream << k.inspect();
+      stream << ": ";
+      stream << v.inspect();
+    });
+    stream << '}';
+    return stream.str();
   }
 };
 }  // namespace

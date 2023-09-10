@@ -69,6 +69,9 @@ class HashMap::Impl {
 
   const Object& operator[](const Object& key) const noexcept;
 
+  void forEach(const std::function<void(const Object&, const Object&)>&
+                   callable) const noexcept;
+
  private:
   std::unordered_map<ObjectWrapper, Object> mMap;
 };
@@ -87,6 +90,14 @@ const Object& HashMap::Impl::operator[](const Object& key) const noexcept {
   return Object::nil();
 }
 
+void HashMap::Impl::forEach(
+    const std::function<void(const Object&, const Object&)>& callable)
+    const noexcept {
+  for (const auto& [k, v] : mMap) {
+    callable(k.obj, v);
+  }
+}
+
 HashMap::HashMap() noexcept : mImpl{} {}
 
 const Object& HashMap::operator[](const Object& key) const noexcept {
@@ -97,6 +108,11 @@ HashMap::~HashMap() noexcept {}
 
 void HashMap::pushKvPair(const KvPair& pair) noexcept {
   mImpl->pushKvPair(pair);
+}
+
+void HashMap::forEach(const std::function<void(const Object&, const Object&)>&
+                          callable) const noexcept {
+  mImpl->forEach(callable);
 }
 
 }  // namespace runtime
