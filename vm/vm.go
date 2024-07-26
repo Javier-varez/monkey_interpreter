@@ -50,7 +50,10 @@ func (vm *VM) Run() error {
 			}
 
 			result := a.(*object.Integer).Value + b.(*object.Integer).Value
-			vm.push(&object.Integer{Value: result})
+			err = vm.push(&object.Integer{Value: result})
+			if err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("Unhandled operation: %v", op)
 		}
