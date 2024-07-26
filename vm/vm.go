@@ -38,19 +38,13 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
-		case code.OpAdd:
-			a, err := vm.pop()
+		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
+			err := vm.runBinaryOp(op)
 			if err != nil {
 				return err
 			}
-
-			b, err := vm.pop()
-			if err != nil {
-				return err
-			}
-
-			result := a.(*object.Integer).Value + b.(*object.Integer).Value
-			err = vm.push(&object.Integer{Value: result})
+		case code.OpPop:
+			_, err := vm.pop()
 			if err != nil {
 				return err
 			}
@@ -59,6 +53,36 @@ func (vm *VM) Run() error {
 		}
 	}
 	return nil
+}
+
+func (vm *VM) runBinaryOp(op code.Opcode) error {
+	rhs, err := vm.pop()
+	if err != nil {
+		return err
+	}
+
+	lhs, err := vm.pop()
+	if err != nil {
+		return err
+	}
+
+	rhsVal := rhs.(*object.Integer).Value
+	lhsVal := lhs.(*object.Integer).Value
+
+	var result int64
+	switch op {
+	case code.OpAdd:
+		result = lhsVal + rhsVal
+	case code.OpSub:
+		result = lhsVal - rhsVal
+	case code.OpMul:
+		result = lhsVal * rhsVal
+	case code.OpDiv:
+		result = lhsVal / rhsVal
+	default:
+		return fmt.Errorf("Invalid binary operation: %v", op)
+	}
+	return vm.push(&object.Integer{Value: result})
 }
 
 func (vm *VM) push(ob object.Object) error {
@@ -84,4 +108,8 @@ func (vm *VM) StackTop() object.Object {
 		return nil
 	}
 	return vm.stack[vm.sp-1]
+}
+
+func (vm *VM) LastPoppedStackElem() object.Object {
+	return vm.stack[vm.sp]
 }

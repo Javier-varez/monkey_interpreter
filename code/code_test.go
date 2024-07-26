@@ -10,6 +10,10 @@ func TestMake(t *testing.T) {
 	}{
 		{OpConstant, []int{65534}, Instructions{byte(OpConstant), 255, 254}},
 		{OpAdd, []int{}, Instructions{byte(OpAdd)}},
+		{OpSub, []int{}, Instructions{byte(OpSub)}},
+		{OpMul, []int{}, Instructions{byte(OpMul)}},
+		{OpDiv, []int{}, Instructions{byte(OpDiv)}},
+		{OpPop, []int{}, Instructions{byte(OpPop)}},
 	}
 
 	for _, tt := range tests {
@@ -33,12 +37,20 @@ func TestInstructionsString(t *testing.T) {
 		Make(OpConstant, 2),
 		Make(OpConstant, 65535),
 		Make(OpAdd),
+		Make(OpSub),
+		Make(OpMul),
+		Make(OpDiv),
+		Make(OpPop),
 	}
 
 	expected := `0000 OpConstant 1
 0003 OpConstant 2
 0006 OpConstant 65535
 0009 OpAdd
+0010 OpSub
+0011 OpMul
+0012 OpDiv
+0013 OpPop
 `
 	concatted := Instructions{}
 	for _, ins := range instructions {

@@ -32,7 +32,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.ExpressionStatement:
-		return c.Compile(node.Expr)
+		err := c.Compile(node.Expr)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpPop)
+		return nil
 
 	case *ast.InfixExpr:
 		err := c.Compile(node.LeftExpr)
@@ -48,6 +53,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 		switch node.OperatorToken.Type {
 		case token.PLUS:
 			c.emit(code.OpAdd)
+		case token.MINUS:
+			c.emit(code.OpSub)
+		case token.ASTERISK:
+			c.emit(code.OpMul)
+		case token.SLASH:
+			c.emit(code.OpDiv)
 		default:
 			return fmt.Errorf("Unhandled infix operator %s", node.OperatorToken.Type)
 		}
