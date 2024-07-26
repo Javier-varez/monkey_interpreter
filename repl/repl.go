@@ -130,8 +130,8 @@ func Start(useVm bool) {
 				continue
 			}
 
-			stackTop := vmInst.StackTop()
-			fmt.Printf("%v\n", stackTop.Inspect())
+			lastPopped := vmInst.LastPoppedStackElem()
+			fmt.Printf("%v\n", lastPopped.Inspect())
 		} else {
 			result := evaluator.Eval(program, env)
 			if result != nil {
