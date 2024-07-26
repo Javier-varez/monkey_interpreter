@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/javier-varez/monkey_interpreter/compiler"
 	"github.com/javier-varez/monkey_interpreter/evaluator"
 	"github.com/javier-varez/monkey_interpreter/lexer"
 	"github.com/javier-varez/monkey_interpreter/object"
 	"github.com/javier-varez/monkey_interpreter/parser"
+	"github.com/javier-varez/monkey_interpreter/vm"
 	"github.com/peterh/liner"
 )
 
@@ -81,16 +83,22 @@ func newPromptReader() PromptReader {
 	return PromptReader{linerState: s}
 }
 
-func Start() {
+func Start(useVm bool) {
 	linerState := newPromptReader()
 	defer linerState.SaveHistoryFile()
 
 	env := object.NewEnvironment()
 
+	if useVm {
+		fmt.Println("Started REPL with VM")
+	} else {
+		fmt.Println("Started REPL with interpreter")
+	}
+
 	for {
 		txt, err := linerState.Prompt()
 		if err != nil {
-			fmt.Printf("Error from liner: %v", err)
+			fmt.Printf("Error from liner: %v\n", err)
 			return
 		}
 
@@ -104,6 +112,26 @@ func Start() {
 			for _, diag := range program.Diagnostics {
 				fmt.Println(diag.ContextualError())
 			}
+			continue
+		}
+
+		if useVm {
+			c := compiler.New()
+			err := c.Compile(program)
+			if err != nil {
+				fmt.Printf("Error from compiler: %s\n", err)
+				continue
+			}
+
+			vmInst := vm.New(c.Bytecode())
+			err = vmInst.Run()
+			if err != nil {
+				fmt.Printf("Error from vm: %s\n", err)
+				continue
+			}
+
+			stackTop := vmInst.StackTop()
+			fmt.Printf("%v\n", stackTop.Inspect())
 		} else {
 			result := evaluator.Eval(program, env)
 			if result != nil {

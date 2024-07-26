@@ -33,14 +33,17 @@ var compileCmd cobra.Command = cobra.Command{
 	Run:  compileFile,
 }
 
+var useVm bool
+
 func init() {
+	replCmd.Flags().BoolVar(&useVm, "vm", false, "Instructs the repl to use the VM instead of the interpreter")
 	rootCmd.AddCommand(&replCmd)
 	rootCmd.AddCommand(&runCmd)
 	rootCmd.AddCommand(&compileCmd)
 }
 
 func runRepl(c *cobra.Command, args []string) {
-	repl.Start()
+	repl.Start(useVm)
 }
 
 func runFile(c *cobra.Command, args []string) {
