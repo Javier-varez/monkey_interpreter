@@ -48,6 +48,21 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpTrue:
+			err := vm.push(&object.Boolean{Value: true})
+			if err != nil {
+				return err
+			}
+		case code.OpFalse:
+			err := vm.push(&object.Boolean{Value: false})
+			if err != nil {
+				return err
+			}
+		case code.OpGreaterThan, code.OpEqual, code.OpNotEqual:
+			err := vm.runComparisonOp(op)
+			if err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("Unhandled operation: %v", op)
 		}
@@ -83,6 +98,55 @@ func (vm *VM) runBinaryOp(op code.Opcode) error {
 		return fmt.Errorf("Invalid binary operation: %v", op)
 	}
 	return vm.push(&object.Integer{Value: result})
+}
+
+func (vm *VM) runComparisonOp(op code.Opcode) error {
+	rhs, err := vm.pop()
+	if err != nil {
+		return err
+	}
+
+	lhs, err := vm.pop()
+	if err != nil {
+		return err
+	}
+
+	if rhs.Type() == object.INTEGER_OBJ && lhs.Type() == object.INTEGER_OBJ {
+		return vm.runIntComparisonOp(op, lhs.(*object.Integer), rhs.(*object.Integer))
+	}
+
+	if rhs.Type() != object.BOOLEAN_OBJ || lhs.Type() != object.BOOLEAN_OBJ {
+		return fmt.Errorf("Cannot apply comparison operator on types %T and %T", lhs, rhs)
+	}
+
+	lhsVal := lhs.(*object.Boolean)
+	rhsVal := rhs.(*object.Boolean)
+
+	var result bool
+	switch op {
+	case code.OpEqual:
+		result = lhsVal.Value == rhsVal.Value
+	case code.OpNotEqual:
+		result = lhsVal.Value != rhsVal.Value
+	default:
+		return fmt.Errorf("Invalid comparison operation: %v", op)
+	}
+	return vm.push(&object.Boolean{Value: result})
+}
+
+func (vm *VM) runIntComparisonOp(op code.Opcode, lhs, rhs *object.Integer) error {
+	var result bool
+	switch op {
+	case code.OpEqual:
+		result = lhs.Value == rhs.Value
+	case code.OpNotEqual:
+		result = lhs.Value != rhs.Value
+	case code.OpGreaterThan:
+		result = lhs.Value > rhs.Value
+	default:
+		return fmt.Errorf("Invalid integer comparison operation: %v", op)
+	}
+	return vm.push(&object.Boolean{Value: result})
 }
 
 func (vm *VM) push(ob object.Object) error {

@@ -17,6 +17,11 @@ const (
 	OpMul
 	OpDiv
 	OpPop
+	OpTrue
+	OpFalse
+	OpEqual
+	OpNotEqual
+	OpGreaterThan
 )
 
 type Definition struct {
@@ -25,12 +30,17 @@ type Definition struct {
 }
 
 var definitions = map[Opcode]*Definition{
-	OpConstant: {Name: "OpConstant", OperandWidths: []int{2}},
-	OpAdd:      {Name: "OpAdd"},
-	OpSub:      {Name: "OpSub"},
-	OpMul:      {Name: "OpMul"},
-	OpDiv:      {Name: "OpDiv"},
-	OpPop:      {Name: "OpPop"},
+	OpConstant:    {Name: "OpConstant", OperandWidths: []int{2}},
+	OpAdd:         {Name: "OpAdd"},
+	OpSub:         {Name: "OpSub"},
+	OpMul:         {Name: "OpMul"},
+	OpDiv:         {Name: "OpDiv"},
+	OpPop:         {Name: "OpPop"},
+	OpTrue:        {Name: "OpTrue"},
+	OpFalse:       {Name: "OpFalse"},
+	OpEqual:       {Name: "OpEqual"},
+	OpNotEqual:    {Name: "OpNotEqual"},
+	OpGreaterThan: {Name: "OpGreaterThan"},
 }
 
 func Lookup(op byte) (*Definition, error) {
