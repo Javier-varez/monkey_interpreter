@@ -40,6 +40,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 		return nil
 
 	case *ast.InfixExpr:
+		if node.OperatorToken.Type == token.LT {
+			err := c.Compile(node.RightExpr)
+			if err != nil {
+				return err
+			}
+
+			err = c.Compile(node.LeftExpr)
+			if err != nil {
+				return err
+			}
+
+			c.emit(code.OpGreaterThan)
+			return nil
+		}
+
 		err := c.Compile(node.LeftExpr)
 		if err != nil {
 			return err
@@ -59,6 +74,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpMul)
 		case token.SLASH:
 			c.emit(code.OpDiv)
+		case token.GT:
+			c.emit(code.OpGreaterThan)
+		case token.EQ:
+			c.emit(code.OpEqual)
+		case token.NOT_EQ:
+			c.emit(code.OpNotEqual)
 		default:
 			return fmt.Errorf("Unhandled infix operator %s", node.OperatorToken.Type)
 		}
@@ -68,6 +89,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.IntegerLiteralExpr:
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
+
+	case *ast.BoolLiteralExpr:
+		if node.Value {
+			c.emit(code.OpTrue)
+		} else {
+			c.emit(code.OpFalse)
+		}
 	}
 	return nil
 }
