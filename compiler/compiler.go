@@ -96,7 +96,23 @@ func (c *Compiler) Compile(node ast.Node) error {
 		} else {
 			c.emit(code.OpFalse)
 		}
+
+	case *ast.PrefixExpr:
+		err := c.Compile(node.InnerExpr)
+		if err != nil {
+			return err
+		}
+
+		switch node.OperatorToken.Type {
+		case token.BANG:
+			c.emit(code.OpBang)
+		case token.MINUS:
+			c.emit(code.OpMinus)
+		default:
+			return fmt.Errorf("Unhandled prefix operator %s", node.OperatorToken.Type)
+		}
 	}
+
 	return nil
 }
 

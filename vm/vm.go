@@ -63,6 +63,34 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpMinus:
+			v, err := vm.pop()
+			if err != nil {
+				return err
+			}
+
+			if v.Type() != object.INTEGER_OBJ {
+				return fmt.Errorf("Cannot apply minus operator on type %T", v)
+			}
+
+			asInt := v.(*object.Integer)
+			vm.push(&object.Integer{Value: -asInt.Value})
+		case code.OpBang:
+			v, err := vm.pop()
+			if err != nil {
+				return err
+			}
+
+			var asBool bool
+			if v.Type() == object.BOOLEAN_OBJ {
+				asBool = v.(*object.Boolean).Value
+			} else if v.Type() == object.INTEGER_OBJ {
+				asBool = v.(*object.Integer).Value != 0
+			} else {
+				return fmt.Errorf("Cannot apply bang operator on type %T", v)
+			}
+
+			vm.push(&object.Boolean{Value: !asBool})
 		default:
 			return fmt.Errorf("Unhandled operation: %v", op)
 		}
