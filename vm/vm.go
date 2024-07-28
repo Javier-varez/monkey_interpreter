@@ -91,11 +91,41 @@ func (vm *VM) Run() error {
 			}
 
 			vm.push(&object.Boolean{Value: !asBool})
+
+		case code.OpJumpNotTruthy:
+			target := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+
+			v, err := vm.pop()
+			if err != nil {
+				return err
+			}
+
+			if isTruthy, err := asBoolean(v); err != nil {
+				return err
+			} else if !isTruthy {
+				ip = int(target) - 1
+			}
+
+		case code.OpJump:
+			target := code.ReadUint16(vm.instructions[ip+1:])
+			ip = int(target) - 1
+
 		default:
 			return fmt.Errorf("Unhandled operation: %v", op)
 		}
 	}
 	return nil
+}
+
+func asBoolean(o object.Object) (bool, error) {
+	switch o := o.(type) {
+	case *object.Integer:
+		return o.Value != 0, nil
+	case *object.Boolean:
+		return o.Value, nil
+	}
+	return false, fmt.Errorf("Invalid boolean type %T", o)
 }
 
 func (vm *VM) runBinaryOp(op code.Opcode) error {
