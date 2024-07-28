@@ -12,6 +12,14 @@ import (
 type Compiler struct {
 	instructions code.Instructions
 	constants    []object.Object
+
+	lastInstruction     EmittedInstruction
+	previousInstruction EmittedInstruction
+}
+
+type EmittedInstruction struct {
+	Opcode   code.Opcode
+	Position int
 }
 
 func New() *Compiler {
@@ -21,8 +29,8 @@ func New() *Compiler {
 	}
 }
 
-func (c *Compiler) Compile(node ast.Node) error {
-	switch node := node.(type) {
+func (c *Compiler) Compile(untypedNode ast.Node) error {
+	switch node := untypedNode.(type) {
 	case *ast.Program:
 		for _, s := range node.Statements {
 			err := c.Compile(s)
@@ -111,15 +119,86 @@ func (c *Compiler) Compile(node ast.Node) error {
 		default:
 			return fmt.Errorf("Unhandled prefix operator %s", node.OperatorToken.Type)
 		}
+
+	case *ast.IfExpr:
+		err := c.Compile(node.Condition)
+		if err != nil {
+			return err
+		}
+
+		notTrutyInst := c.emit(code.OpJumpNotTruthy, 1234)
+
+		err = c.Compile(node.Consequence)
+		if err != nil {
+			return err
+		}
+
+		if node.Alternative != nil {
+			if c.lastInstructionIsPop() {
+				c.removeLastPop()
+			}
+
+			endTruthyJumpPos := c.emit(code.OpJump, 1234)
+			c.changeOperand(notTrutyInst, len(c.instructions))
+
+			err = c.Compile(node.Alternative)
+			if err != nil {
+				return err
+			}
+
+			if c.lastInstructionIsPop() {
+				c.removeLastPop()
+			}
+
+			c.changeOperand(endTruthyJumpPos, len(c.instructions))
+		} else {
+			if c.lastInstructionIsPop() {
+				c.removeLastPop()
+			}
+
+			c.changeOperand(notTrutyInst, len(c.instructions))
+		}
+	case *ast.BlockStatement:
+		for _, s := range node.Statements {
+			err := c.Compile(s)
+			if err != nil {
+				return err
+			}
+		}
+
+	default:
+		return fmt.Errorf("Unhandled node type %T", untypedNode)
 	}
 
 	return nil
+}
+
+func (c *Compiler) lastInstructionIsPop() bool {
+	return c.lastInstruction.Opcode == code.OpPop
+}
+
+func (c *Compiler) removeLastPop() {
+	c.instructions = c.instructions[:c.lastInstruction.Position]
+	c.lastInstruction = c.previousInstruction
+}
+
+func (c *Compiler) replaceInstruction(pos int, newInstr []byte) {
+	for i := range newInstr {
+		c.instructions[pos+i] = newInstr[i]
+	}
+}
+
+func (c *Compiler) changeOperand(opPos int, operand int) {
+	opcode := code.Opcode(c.instructions[opPos])
+	instrs := code.Make(opcode, operand)
+	c.replaceInstruction(opPos, instrs)
 }
 
 /// Operands is a list of operand offsets to the constants of the compiler
 func (c *Compiler) emit(op code.Opcode, operands ...int) int {
 	inst := code.Make(op, operands...)
 	pos := c.addInstruction(inst)
+	c.setLastInstruction(op, pos)
 	return pos
 }
 
@@ -133,6 +212,14 @@ func (c *Compiler) addInstruction(inst code.Instructions) int {
 	off := len(c.instructions)
 	c.instructions = append(c.instructions, inst...)
 	return off
+}
+
+func (c *Compiler) setLastInstruction(op code.Opcode, position int) {
+	c.previousInstruction = c.lastInstruction
+	c.lastInstruction = EmittedInstruction{
+		Opcode:   op,
+		Position: position,
+	}
 }
 
 func (c *Compiler) Bytecode() *Bytecode {
