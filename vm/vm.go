@@ -18,6 +18,10 @@ type VM struct {
 	sp    int // Always points to the next value. Top of stack is stack[sp-1]
 }
 
+var Null = &object.Null{}
+var True = &object.Boolean{Value: true}
+var False = &object.Boolean{Value: false}
+
 func New(bytecode *compiler.Bytecode) *VM {
 	return &VM{
 		constants:    bytecode.Constants,
@@ -49,12 +53,12 @@ func (vm *VM) Run() error {
 				return err
 			}
 		case code.OpTrue:
-			err := vm.push(&object.Boolean{Value: true})
+			err := vm.push(True)
 			if err != nil {
 				return err
 			}
 		case code.OpFalse:
-			err := vm.push(&object.Boolean{Value: false})
+			err := vm.push(False)
 			if err != nil {
 				return err
 			}
@@ -86,8 +90,10 @@ func (vm *VM) Run() error {
 				asBool = v.(*object.Boolean).Value
 			} else if v.Type() == object.INTEGER_OBJ {
 				asBool = v.(*object.Integer).Value != 0
+			} else if v.Type() == object.NULL_OBJ {
+				asBool = false
 			} else {
-				return fmt.Errorf("Cannot apply bang operator on type %T", v)
+				asBool = true
 			}
 
 			vm.push(&object.Boolean{Value: !asBool})
@@ -101,15 +107,19 @@ func (vm *VM) Run() error {
 				return err
 			}
 
-			if isTruthy, err := asBoolean(v); err != nil {
-				return err
-			} else if !isTruthy {
+			if isTruthy := asBoolean(v); !isTruthy {
 				ip = int(target) - 1
 			}
 
 		case code.OpJump:
 			target := code.ReadUint16(vm.instructions[ip+1:])
 			ip = int(target) - 1
+
+		case code.OpNull:
+			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
 
 		default:
 			return fmt.Errorf("Unhandled operation: %v", op)
@@ -118,14 +128,16 @@ func (vm *VM) Run() error {
 	return nil
 }
 
-func asBoolean(o object.Object) (bool, error) {
+func asBoolean(o object.Object) bool {
 	switch o := o.(type) {
 	case *object.Integer:
-		return o.Value != 0, nil
+		return o.Value != 0
 	case *object.Boolean:
-		return o.Value, nil
+		return o.Value
+	case *object.Null:
+		return false
 	}
-	return false, fmt.Errorf("Invalid boolean type %T", o)
+	return true
 }
 
 func (vm *VM) runBinaryOp(op code.Opcode) error {
