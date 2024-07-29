@@ -23,6 +23,7 @@ func TestMake(t *testing.T) {
 		{OpBang, []int{}, Instructions{byte(OpBang)}},
 		{OpJump, []int{123}, Instructions{byte(OpJump), 0, 123}},
 		{OpJumpNotTruthy, []int{126}, Instructions{byte(OpJumpNotTruthy), 0, 126}},
+		{OpNull, []int{}, Instructions{byte(OpNull)}},
 	}
 
 	for _, tt := range tests {
@@ -59,6 +60,7 @@ func TestInstructionsString(t *testing.T) {
 		Make(OpBang),
 		Make(OpJump, 1234),
 		Make(OpJumpNotTruthy, 1234),
+		Make(OpNull),
 	}
 
 	expected := `0000 OpConstant 1
@@ -78,6 +80,7 @@ func TestInstructionsString(t *testing.T) {
 0020 OpBang
 0021 OpJump 1234
 0024 OpJumpNotTruthy 1234
+0027 OpNull
 `
 	concatted := Instructions{}
 	for _, ins := range instructions {
