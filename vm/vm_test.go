@@ -151,3 +151,13 @@ func TestBooleanExpressions(t *testing.T) {
 
 	runVmTests(t, tests)
 }
+
+func TestGlobalLetStatements(t *testing.T) {
+	tests := []vmTestCase{
+		{"let a = 10; a;", 10},
+		{"let a = 10; let b = 24; a + b;", 34},
+		{"let a = 10; let b = 24; let c = 12; a + b + c;", 46},
+	}
+
+	runVmTests(t, tests)
+}

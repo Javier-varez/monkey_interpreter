@@ -88,6 +88,9 @@ func Start(useVm bool) {
 	defer linerState.SaveHistoryFile()
 
 	env := object.NewEnvironment()
+	constants := []object.Object{}
+	symbolTable := compiler.NewSymbolTable()
+	globals := make([]object.Object, vm.GLOBALS_SIZE)
 
 	if useVm {
 		fmt.Println("Started REPL with VM")
@@ -116,14 +119,14 @@ func Start(useVm bool) {
 		}
 
 		if useVm {
-			c := compiler.New()
+			c := compiler.NewWithState(constants, symbolTable)
 			err := c.Compile(program)
 			if err != nil {
 				fmt.Printf("Error from compiler: %s\n", err)
 				continue
 			}
 
-			vmInst := vm.New(c.Bytecode())
+			vmInst := vm.NewWithGlobalKeyStore(c.Bytecode(), globals)
 			err = vmInst.Run()
 			if err != nil {
 				fmt.Printf("Error from vm: %s\n", err)

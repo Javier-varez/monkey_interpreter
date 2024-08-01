@@ -15,6 +15,7 @@ type Compiler struct {
 
 	lastInstruction     EmittedInstruction
 	previousInstruction EmittedInstruction
+	symbolTable         *SymbolTable
 }
 
 type EmittedInstruction struct {
@@ -23,9 +24,14 @@ type EmittedInstruction struct {
 }
 
 func New() *Compiler {
+	return NewWithState([]object.Object{}, NewSymbolTable())
+}
+
+func NewWithState(constants []object.Object, symbolTable *SymbolTable) *Compiler {
 	return &Compiler{
 		instructions: code.Instructions{},
-		constants:    []object.Object{},
+		constants:    constants,
+		symbolTable:  symbolTable,
 	}
 }
 
@@ -161,6 +167,23 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 				return err
 			}
 		}
+
+	case *ast.LetStatement:
+		err := c.Compile(node.Expr)
+		if err != nil {
+			return err
+		}
+
+		sym := c.symbolTable.Define(node.IdentExpr.(*ast.IdentifierExpr).IdentToken.Literal)
+		c.emit(code.OpSetGlobal, sym.Index)
+
+	case *ast.IdentifierExpr:
+		sym, ok := c.symbolTable.Resolve(node.IdentToken.Literal)
+		if !ok {
+			return fmt.Errorf("Unknown identifier %s", node.IdentToken.Literal)
+		}
+
+		c.emit(code.OpGetGlobal, sym.Index)
 
 	default:
 		return fmt.Errorf("Unhandled node type %T", untypedNode)
