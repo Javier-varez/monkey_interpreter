@@ -189,6 +189,19 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 		idx := c.addConstant(&object.String{Value: node.Value})
 		c.emit(code.OpConstant, idx)
 
+	case *ast.ArrayLiteralExpr:
+		for _, elemExpr := range node.Elems {
+			err := c.Compile(elemExpr)
+			if err != nil {
+				return err
+			}
+
+			if c.lastInstructionIsPop() {
+				c.removeLastPop()
+			}
+		}
+		c.emit(code.OpArray, len(node.Elems))
+
 	default:
 		return fmt.Errorf("Unhandled node type %T", untypedNode)
 	}

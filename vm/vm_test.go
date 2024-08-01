@@ -53,6 +53,22 @@ func testStringObject(expected string, actual object.Object) error {
 	return nil
 }
 
+func testArrayObject(t *testing.T, expected []interface{}, actual object.Object) error {
+	result, ok := actual.(*object.Array)
+	if !ok {
+		return fmt.Errorf("Object is not an array. got=%T (%+v)", actual, actual)
+	}
+
+	if len(expected) != len(result.Elems) {
+		return fmt.Errorf("Unexpected number of elements: got=%+v, expected=%+v", result.Elems, expected)
+	}
+
+	for i, elem := range result.Elems {
+		testExpectedObject(t, expected[i], elem)
+	}
+	return nil
+}
+
 type vmTestCase struct {
 	input    string
 	expected interface{}
@@ -105,6 +121,11 @@ func testExpectedObject(t *testing.T, expected interface{}, actual object.Object
 		err := testStringObject(expected, actual)
 		if err != nil {
 			t.Fatalf("testStringObject failed: %s", err)
+		}
+	case []interface{}:
+		err := testArrayObject(t, expected, actual)
+		if err != nil {
+			t.Fatalf("testArrayObject failed: %s", err)
 		}
 	}
 }
@@ -184,6 +205,17 @@ func TestStringExpressions(t *testing.T) {
 		{`"monkey"`, "monkey"},
 		{`"mon" + "key"`, "monkey"},
 		{`"mon" + "key" + "banana"`, "monkeybanana"},
+	}
+
+	runVmTests(t, tests)
+}
+
+func TestArrayExpressions(t *testing.T) {
+	tests := []vmTestCase{
+		{`[]`, []interface{}{}},
+		{`[1, 2, 3]`, []interface{}{1, 2, 3}},
+		{`[1, "hi", 3, 4]`, []interface{}{1, "hi", 3, 4}},
+		{`[1 + 2, 3 * 4, 5 + 6]`, []interface{}{3, 12, 11}},
 	}
 
 	runVmTests(t, tests)
