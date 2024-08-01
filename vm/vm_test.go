@@ -69,6 +69,38 @@ func testArrayObject(t *testing.T, expected []interface{}, actual object.Object)
 	return nil
 }
 
+func testMapObject(t *testing.T, expected map[interface{}]interface{}, actual object.Object) error {
+	result, ok := actual.(*object.HashMap)
+	if !ok {
+		return fmt.Errorf("Object is not a map. got=%T (%+v)", actual, actual)
+	}
+
+	if len(expected) != len(result.Elems) {
+		return fmt.Errorf("Unexpected number of elements: got=%+v, expected=%+v", result.Elems, expected)
+	}
+
+	for _, v := range result.Elems {
+		var key interface{}
+		switch k := v.Key.(type) {
+		case *object.Boolean:
+			key = k.Value
+		case *object.Integer:
+			key = int(k.Value)
+		case *object.String:
+			key = k.Value
+		default:
+			return fmt.Errorf("Invalid key type used in map")
+		}
+
+		if expectedVal, ok := expected[key]; ok {
+			testExpectedObject(t, expectedVal, v.Value)
+		} else {
+			return fmt.Errorf("Key %+v (%T) not found", v.Key, v.Key)
+		}
+	}
+	return nil
+}
+
 type vmTestCase struct {
 	input    string
 	expected interface{}
@@ -126,6 +158,11 @@ func testExpectedObject(t *testing.T, expected interface{}, actual object.Object
 		err := testArrayObject(t, expected, actual)
 		if err != nil {
 			t.Fatalf("testArrayObject failed: %s", err)
+		}
+	case map[interface{}]interface{}:
+		err := testMapObject(t, expected, actual)
+		if err != nil {
+			t.Fatalf("testMapObject failed: %s", err)
 		}
 	}
 }
@@ -219,6 +256,19 @@ func TestArrayExpressions(t *testing.T) {
 		{`[1 + 2, 3 * 4, 5 + 6][0]`, 3},
 		{`[1 + 2, 3 * 4, 5 + 6][0 + 1 + 32 * 0]`, 12},
 		{`[1 + 2, 3 * 4, 5 + 6][0 + 1 + 1 + 32 * 0]`, 11},
+		{`[1 + 2, 3 * 4, 5 + 6][0 + 1 + 1 + 32]`, Null},
+	}
+
+	runVmTests(t, tests)
+}
+
+func TestHashExpressions(t *testing.T) {
+	tests := []vmTestCase{
+		{`{}`, map[interface{}]interface{}{}},
+		{`{ 1: 3, "3": 4 }`, map[interface{}]interface{}{1: 3, "3": 4}},
+		{`{ 1: 3, "34": 4 }[0 + 1 + 123 * 0]`, 3},
+		{`{ 1: 3, "34": 4 }["3" + "4"]`, 4},
+		{`{ 1: 3, "34": 4 }["4" + "4"]`, Null},
 	}
 
 	runVmTests(t, tests)

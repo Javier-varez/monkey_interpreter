@@ -173,6 +173,35 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpHash:
+			mapLen := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+
+			hashmap := &object.HashMap{Elems: make(map[object.HashKey]object.HashEntry, mapLen)}
+			for i := 0; i < int(mapLen); i++ {
+				val, err := vm.pop()
+				if err != nil {
+					return err
+				}
+
+				key, err := vm.pop()
+				if err != nil {
+					return err
+				}
+
+				hashable, ok := key.(object.Hashable)
+				if !ok {
+					return fmt.Errorf("Key object is not hashable")
+				}
+
+				hashmap.Elems[hashable.HashKey()] = object.HashEntry{Key: key, Value: val}
+			}
+
+			err := vm.push(hashmap)
+			if err != nil {
+				return err
+			}
+
 		case code.OpIndex:
 			indexObj, err := vm.pop()
 			if err != nil {
@@ -189,11 +218,32 @@ func (vm *VM) Run() error {
 				if indexObj.Type() != object.INTEGER_OBJ {
 					return fmt.Errorf("Index to array must be an integral. Got=%T (%+v)", indexObj, indexObj)
 				}
+
+				var err error
 				i := indexObj.(*object.Integer).Value
-				if i >= int64(len(inner.Elems)) {
-					return fmt.Errorf("Out of bounds access to the array. Index %d, Len %d", i, len(inner.Elems))
+				if i < int64(len(inner.Elems)) {
+					err = vm.push(inner.Elems[i])
+				} else {
+					err = vm.push(Null)
 				}
-				err := vm.push(inner.Elems[i])
+				if err != nil {
+					return err
+				}
+
+			case *object.HashMap:
+				hashable, ok := indexObj.(object.Hashable)
+				if !ok {
+					return fmt.Errorf("Index of type %T (%+v) is not hashable", indexObj, indexObj)
+				}
+				key := hashable.HashKey()
+
+				kv, ok := inner.Elems[key]
+				var err error
+				if ok {
+					err = vm.push(kv.Value)
+				} else {
+					err = vm.push(Null)
+				}
 				if err != nil {
 					return err
 				}
