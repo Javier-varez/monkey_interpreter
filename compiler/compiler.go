@@ -211,6 +211,20 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 
 		c.emit(code.OpIndex)
 
+	case *ast.MapLiteralExpr:
+		for k, v := range node.Map {
+			err := c.Compile(k)
+			if err != nil {
+				return err
+			}
+
+			err = c.Compile(v)
+			if err != nil {
+				return err
+			}
+		}
+		c.emit(code.OpHash, len(node.Map))
+
 	default:
 		return fmt.Errorf("Unhandled node type %T", untypedNode)
 	}
