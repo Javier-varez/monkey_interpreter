@@ -185,6 +185,10 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 
 		c.emit(code.OpGetGlobal, sym.Index)
 
+	case *ast.StringLiteralExpr:
+		idx := c.addConstant(&object.String{Value: node.Value})
+		c.emit(code.OpConstant, idx)
+
 	default:
 		return fmt.Errorf("Unhandled node type %T", untypedNode)
 	}

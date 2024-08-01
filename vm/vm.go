@@ -185,23 +185,41 @@ func (vm *VM) runBinaryOp(op code.Opcode) error {
 		return err
 	}
 
-	rhsVal := rhs.(*object.Integer).Value
-	lhsVal := lhs.(*object.Integer).Value
+	if rhs.Type() == object.STRING_OBJ && lhs.Type() == object.STRING_OBJ {
+		return vm.runStringBinaryOp(op, lhs.(*object.String), rhs.(*object.String))
+	}
+	if rhs.Type() == object.INTEGER_OBJ && lhs.Type() == object.INTEGER_OBJ {
+		return vm.runIntBinaryOp(op, lhs.(*object.Integer), rhs.(*object.Integer))
+	}
+	return fmt.Errorf("Invalid binary operation %d for types %T and %T", op, lhs, rhs)
+}
 
+func (vm *VM) runIntBinaryOp(op code.Opcode, lhs, rhs *object.Integer) error {
 	var result int64
 	switch op {
 	case code.OpAdd:
-		result = lhsVal + rhsVal
+		result = lhs.Value + rhs.Value
 	case code.OpSub:
-		result = lhsVal - rhsVal
+		result = lhs.Value - rhs.Value
 	case code.OpMul:
-		result = lhsVal * rhsVal
+		result = lhs.Value * rhs.Value
 	case code.OpDiv:
-		result = lhsVal / rhsVal
+		result = lhs.Value / rhs.Value
 	default:
 		return fmt.Errorf("Invalid binary operation: %v", op)
 	}
 	return vm.push(&object.Integer{Value: result})
+}
+
+func (vm *VM) runStringBinaryOp(op code.Opcode, lhs, rhs *object.String) error {
+	var result string
+	switch op {
+	case code.OpAdd:
+		result = lhs.Value + rhs.Value
+	default:
+		return fmt.Errorf("Invalid string binary operation: %v", op)
+	}
+	return vm.push(&object.String{Value: result})
 }
 
 func (vm *VM) runComparisonOp(op code.Opcode) error {
