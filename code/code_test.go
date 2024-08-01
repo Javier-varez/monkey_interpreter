@@ -27,6 +27,7 @@ func TestMake(t *testing.T) {
 		{OpGetGlobal, []int{123}, Instructions{byte(OpGetGlobal), 0, 123}},
 		{OpSetGlobal, []int{123}, Instructions{byte(OpSetGlobal), 0, 123}},
 		{OpArray, []int{2}, Instructions{byte(OpArray), 0, 2}},
+		{OpIndex, []int{}, Instructions{byte(OpIndex)}},
 	}
 
 	for _, tt := range tests {
