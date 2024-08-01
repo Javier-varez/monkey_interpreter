@@ -9,25 +9,38 @@ import (
 )
 
 const STACK_SIZE = 2048
+const GLOBALS_SIZE = 65536
 
 type VM struct {
 	constants    []object.Object
 	instructions code.Instructions
 
-	stack []object.Object
-	sp    int // Always points to the next value. Top of stack is stack[sp-1]
+	stack   []object.Object
+	sp      int // Always points to the next value. Top of stack is stack[sp-1]
+	globals []object.Object
 }
 
 var Null = &object.Null{}
 var True = &object.Boolean{Value: true}
 var False = &object.Boolean{Value: false}
 
+func assertNotNil(obj any) {
+	if obj == nil {
+		panic("Unexpected nil object")
+	}
+}
+
 func New(bytecode *compiler.Bytecode) *VM {
+	return NewWithGlobalKeyStore(bytecode, make([]object.Object, GLOBALS_SIZE))
+}
+
+func NewWithGlobalKeyStore(bytecode *compiler.Bytecode, keyStore []object.Object) *VM {
 	return &VM{
 		constants:    bytecode.Constants,
 		instructions: bytecode.Instructions,
 
-		stack: make([]object.Object, STACK_SIZE),
+		stack:   make([]object.Object, STACK_SIZE),
+		globals: keyStore,
 	}
 }
 
@@ -117,6 +130,27 @@ func (vm *VM) Run() error {
 
 		case code.OpNull:
 			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
+
+		case code.OpSetGlobal:
+			idx := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+
+			obj, err := vm.pop()
+			if err != nil {
+				return err
+			}
+			vm.globals[idx] = obj
+
+		case code.OpGetGlobal:
+			idx := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+
+			obj := vm.globals[idx]
+			assertNotNil(obj)
+			err := vm.push(obj)
 			if err != nil {
 				return err
 			}
