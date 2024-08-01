@@ -173,6 +173,35 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpIndex:
+			indexObj, err := vm.pop()
+			if err != nil {
+				return err
+			}
+
+			indexedObj, err := vm.pop()
+			if err != nil {
+				return err
+			}
+
+			switch inner := indexedObj.(type) {
+			case *object.Array:
+				if indexObj.Type() != object.INTEGER_OBJ {
+					return fmt.Errorf("Index to array must be an integral. Got=%T (%+v)", indexObj, indexObj)
+				}
+				i := indexObj.(*object.Integer).Value
+				if i >= int64(len(inner.Elems)) {
+					return fmt.Errorf("Out of bounds access to the array. Index %d, Len %d", i, len(inner.Elems))
+				}
+				err := vm.push(inner.Elems[i])
+				if err != nil {
+					return err
+				}
+
+			default:
+				return fmt.Errorf("Cannot index object of type: %T", indexedObj)
+			}
+
 		default:
 			return fmt.Errorf("Unhandled operation: %v", op)
 		}

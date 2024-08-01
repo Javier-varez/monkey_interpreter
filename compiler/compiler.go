@@ -195,12 +195,21 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 			if err != nil {
 				return err
 			}
-
-			if c.lastInstructionIsPop() {
-				c.removeLastPop()
-			}
 		}
 		c.emit(code.OpArray, len(node.Elems))
+
+	case *ast.IndexOperatorExpr:
+		err := c.Compile(node.ObjExpr)
+		if err != nil {
+			return err
+		}
+
+		err = c.Compile(node.IndexExpr)
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpIndex)
 
 	default:
 		return fmt.Errorf("Unhandled node type %T", untypedNode)
