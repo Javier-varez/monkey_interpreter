@@ -155,6 +155,24 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpArray:
+			arrayLen := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+
+			arr := &object.Array{Elems: make([]object.Object, arrayLen)}
+			for i := int(arrayLen) - 1; i >= 0; i-- {
+				val, err := vm.pop()
+				if err != nil {
+					return err
+				}
+				arr.Elems[i] = val
+			}
+
+			err := vm.push(arr)
+			if err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("Unhandled operation: %v", op)
 		}
