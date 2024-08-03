@@ -341,7 +341,7 @@ func TestCompiler(t *testing.T) {
 			},
 		},
 		{
-			input:             `{ 1: 2 + 3, 4: 5 * 6}`,
+			input:             `{ 1: 2 + 3, 4: 5 * 6 }`,
 			expectedConstants: []interface{}{1, 2, 3, 4, 5, 6},
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpConstant, 0),
