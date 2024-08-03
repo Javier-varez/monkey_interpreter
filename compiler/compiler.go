@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/javier-varez/monkey_interpreter/ast"
 	"github.com/javier-varez/monkey_interpreter/code"
@@ -212,13 +213,21 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 		c.emit(code.OpIndex)
 
 	case *ast.MapLiteralExpr:
-		for k, v := range node.Map {
+		keys := []ast.Expression{}
+		for k := range node.Map {
+			keys = append(keys, k)
+		}
+		sort.Slice(keys, func(i, j int) bool {
+			return keys[i].String() < keys[j].String()
+		})
+
+		for _, k := range keys {
 			err := c.Compile(k)
 			if err != nil {
 				return err
 			}
 
-			err = c.Compile(v)
+			err = c.Compile(node.Map[k])
 			if err != nil {
 				return err
 			}
