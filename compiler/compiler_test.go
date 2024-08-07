@@ -547,6 +547,28 @@ func TestCompiler(t *testing.T) {
 				code.Make(code.OpPop),
 			},
 		},
+		{
+			input: `len([]); push([], 1);`,
+			expectedConstants: []interface {
+			}{
+				1,
+				1,
+				2,
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpArray, 0),
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpGetBuiltin, 0),
+				code.Make(code.OpCall),
+				code.Make(code.OpPop),
+				code.Make(code.OpArray, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpGetBuiltin, 4),
+				code.Make(code.OpCall),
+				code.Make(code.OpPop),
+			},
+		},
 	}
 
 	runCompilerTests(t, tests)

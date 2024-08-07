@@ -101,6 +101,18 @@ func testMapObject(t *testing.T, expected map[interface{}]interface{}, actual ob
 	return nil
 }
 
+func testErrorObject(expected *object.Error, actual object.Object) error {
+	result, ok := actual.(*object.Error)
+	if !ok {
+		return fmt.Errorf("Object is not an *object.Error. got=%T (%+v)", actual, actual)
+	}
+
+	if result.Message != expected.Message {
+		return fmt.Errorf("Object has wrong value. got=%q, want=%q", result.Message, expected.Message)
+	}
+	return nil
+}
+
 type vmTestCase struct {
 	input    string
 	expected interface{}
@@ -161,6 +173,11 @@ func testExpectedObject(t *testing.T, expected interface{}, actual object.Object
 		}
 	case map[interface{}]interface{}:
 		err := testMapObject(t, expected, actual)
+		if err != nil {
+			t.Fatalf("testMapObject failed: %s", err)
+		}
+	case *object.Error:
+		err := testErrorObject(expected, actual)
 		if err != nil {
 			t.Fatalf("testMapObject failed: %s", err)
 		}
@@ -373,4 +390,63 @@ func TestCallingFunctionsWithWrongArguments(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuiltinFunctions(t *testing.T) {
+	tests := []vmTestCase{
+		{`len("")`, 0},
+		{`len("four")`, 4},
+		{`len("hello world")`, 11},
+		{
+			`len(1)`,
+			&object.Error{
+				Message: "\"len\" builtin takes a single string or array argument",
+			},
+		},
+		{`len("one", "two")`,
+			&object.Error{
+				Message: "\"len\" builtin takes a single string or array argument",
+			},
+		},
+		{`len([1, 2, 3])`, 3},
+		{`len([])`, 0},
+		{`puts("hello", "world!")`, Null},
+		{`first([1, 2, 3])`, 1},
+		{`first([])`,
+			&object.Error{
+				Message: "Array is empty",
+			},
+		},
+		{`first(1)`,
+			&object.Error{
+				Message: "\"first\" builtin takes a single array argument",
+			},
+		},
+		{`last([1, 2, 3])`, 3},
+		{`last([])`,
+			&object.Error{
+				Message: "Array is empty",
+			},
+		},
+		{`last(1)`,
+			&object.Error{
+				Message: "\"last\" builtin takes a single array argument",
+			},
+		},
+		{`rest([1, 2, 3])`, []int{2, 3}},
+		{`rest([])`,
+			&object.Error{
+				Message: "Array is empty",
+			},
+		},
+		{`push([], 1)`, []int{1}},
+		{`push(1, 1)`,
+			&object.Error{
+				Message: "\"push\" builtin takes an array argument and a new object to push",
+			},
+		},
+	}
+
+	runVmTests(t, tests)
+
 }
