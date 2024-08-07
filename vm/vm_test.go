@@ -273,3 +273,104 @@ func TestHashExpressions(t *testing.T) {
 
 	runVmTests(t, tests)
 }
+
+func TestFunctionCalls(t *testing.T) {
+	tests := []vmTestCase{
+		{`let a = fn() { 5 + 10 }; a()`, 15},
+		{`let one = fn() { 1 }; let two = fn() { 2 }; one() + two()`, 3},
+		{`let a = fn() { 1 }; let b = fn() { a() + 1 }; let c = fn() { b() + 1 }; c()`, 3},
+		{`let a = fn() { return 10; 1; }; a()`, 10},
+		{`let a = fn() { }; a()`, Null},
+		{`let a = fn() { 1 }; let b = fn() { a }; b()()`, 1},
+		{`let one = fn() { let one = 1; one }; one()`, 1},
+		{
+			`let firstFoobar = fn() { let foobar = 50; foobar; };
+             let secondFoobar = fn() { let foobar = 100; foobar; };
+             firstFoobar() + secondFoobar();`,
+			150,
+		},
+		{
+			`
+			let globalSeed = 50;
+            let minusOne = fn() {
+                let num = 1;
+                globalSeed - num;
+            }
+            let minusTwo = fn() {
+                let num = 2;
+                globalSeed - num;
+            }
+            minusOne() + minusTwo();
+			`,
+			97,
+		},
+		{
+			`
+			let a = 50;
+            let clobberGlobal = fn() {
+				let a = 10;
+                a;
+            }
+            a;
+			`,
+			50,
+		},
+		{
+			`
+            let myFn = fn(a, b) {
+				let c = 10;
+                a + b + c;
+            }
+            myFn(2, 3);
+			`,
+			15,
+		},
+		{
+			`
+            let a = fn(a, b) {
+				let c = 10;
+                a + b + c;
+            }
+            a(2, 3) * a(5,7);
+			`,
+			15 * 22,
+		},
+	}
+
+	runVmTests(t, tests)
+}
+
+func TestCallingFunctionsWithWrongArguments(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input:    `fn() { 1; }(1);`,
+			expected: `wrong number of arguments: want=0, got=1`,
+		},
+		{
+			input:    `fn(a) { a; }();`,
+			expected: `wrong number of arguments: want=1, got=0`,
+		},
+		{
+			input:    `fn(a, b) { a + b; }(1);`,
+			expected: `wrong number of arguments: want=2, got=1`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			program := parse(tt.input)
+			comp := compiler.New()
+			err := comp.Compile(program)
+			if err != nil {
+				t.Fatalf("compiler error: %s", err)
+			}
+			vm := New(comp.Bytecode())
+			err = vm.Run()
+			if err == nil {
+				t.Fatalf("expected VM error but resulted in none.")
+			}
+			if err.Error() != tt.expected {
+				t.Fatalf("wrong VM error: want=%q, got=%q", tt.expected, err)
+			}
+		})
+	}
+}
