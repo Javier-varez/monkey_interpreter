@@ -10,13 +10,19 @@ import (
 	"github.com/javier-varez/monkey_interpreter/token"
 )
 
-type Compiler struct {
+type CompilationScope struct {
 	instructions code.Instructions
-	constants    []object.Object
 
 	lastInstruction     EmittedInstruction
 	previousInstruction EmittedInstruction
-	symbolTable         *SymbolTable
+}
+
+type Compiler struct {
+	constants   []object.Object
+	symbolTable *SymbolTable
+
+	scopes   []CompilationScope
+	curScope int
 }
 
 type EmittedInstruction struct {
@@ -29,11 +35,17 @@ func New() *Compiler {
 }
 
 func NewWithState(constants []object.Object, symbolTable *SymbolTable) *Compiler {
+	mainScope := CompilationScope{}
 	return &Compiler{
-		instructions: code.Instructions{},
-		constants:    constants,
-		symbolTable:  symbolTable,
+		constants:   constants,
+		symbolTable: symbolTable,
+
+		scopes: []CompilationScope{mainScope},
 	}
+}
+
+func (c *Compiler) currentInstructions() code.Instructions {
+	return c.scopes[c.curScope].instructions
 }
 
 func (c *Compiler) Compile(untypedNode ast.Node) error {
@@ -145,7 +157,7 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 		}
 
 		endTruthyJumpPos := c.emit(code.OpJump, 1234)
-		c.changeOperand(notTrutyInst, len(c.instructions))
+		c.changeOperand(notTrutyInst, len(c.currentInstructions()))
 
 		if node.Alternative != nil {
 			err = c.Compile(node.Alternative)
@@ -160,7 +172,7 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 			c.emit(code.OpNull)
 		}
 
-		c.changeOperand(endTruthyJumpPos, len(c.instructions))
+		c.changeOperand(endTruthyJumpPos, len(c.currentInstructions()))
 	case *ast.BlockStatement:
 		for _, s := range node.Statements {
 			err := c.Compile(s)
@@ -176,7 +188,11 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 		}
 
 		sym := c.symbolTable.Define(node.IdentExpr.(*ast.IdentifierExpr).IdentToken.Literal)
-		c.emit(code.OpSetGlobal, sym.Index)
+		if sym.Scope == LocalScope {
+			c.emit(code.OpSetLocal, sym.Index)
+		} else {
+			c.emit(code.OpSetGlobal, sym.Index)
+		}
 
 	case *ast.IdentifierExpr:
 		sym, ok := c.symbolTable.Resolve(node.IdentToken.Literal)
@@ -184,7 +200,11 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 			return fmt.Errorf("Unknown identifier %s", node.IdentToken.Literal)
 		}
 
-		c.emit(code.OpGetGlobal, sym.Index)
+		if sym.Scope == LocalScope {
+			c.emit(code.OpGetLocal, sym.Index)
+		} else {
+			c.emit(code.OpGetGlobal, sym.Index)
+		}
 
 	case *ast.StringLiteralExpr:
 		idx := c.addConstant(&object.String{Value: node.Value})
@@ -234,6 +254,58 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 		}
 		c.emit(code.OpHash, len(node.Map))
 
+	case *ast.FnLiteralExpr:
+		c.enterScope()
+		// Define arguments
+		for _, arg := range node.Args {
+			c.symbolTable.Define(arg.IdentToken.Literal)
+		}
+
+		err := c.Compile(node.Body)
+		if err != nil {
+			return err
+		}
+
+		if c.lastInstructionIsPop() {
+			c.removeLastPop()
+			c.emit(code.OpReturnValue)
+		} else if !c.lastInstructionIsReturnValue() {
+			c.emit(code.OpReturn)
+		}
+
+		insts, numLocals := c.exitScope()
+
+		c.emit(code.OpConstant, c.addConstant(&object.CompiledFunction{
+			Instructions: insts,
+			NumLocals:    numLocals,
+			NumArgs:      len(node.Args),
+			VarArgs:      node.VarArgs,
+		}))
+
+	case *ast.ReturnStatement:
+		err := c.Compile(node.Expr)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpReturnValue)
+
+	case *ast.CallExpr:
+		for _, arg := range node.Args {
+			err := c.Compile(arg)
+			if err != nil {
+				return err
+			}
+		}
+
+		c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(len(node.Args))}))
+
+		err := c.Compile(node.CallableExpr)
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpCall)
+
 	default:
 		return fmt.Errorf("Unhandled node type %T", untypedNode)
 	}
@@ -242,22 +314,29 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 }
 
 func (c *Compiler) lastInstructionIsPop() bool {
-	return c.lastInstruction.Opcode == code.OpPop
+	return c.scopes[c.curScope].lastInstruction.Opcode == code.OpPop
+}
+
+func (c *Compiler) lastInstructionIsReturnValue() bool {
+	return c.scopes[c.curScope].lastInstruction.Opcode == code.OpReturnValue
 }
 
 func (c *Compiler) removeLastPop() {
-	c.instructions = c.instructions[:c.lastInstruction.Position]
-	c.lastInstruction = c.previousInstruction
+	if !c.lastInstructionIsPop() {
+		panic("Last instruction was not pop")
+	}
+	c.scopes[c.curScope].instructions = c.scopes[c.curScope].instructions[:c.scopes[c.curScope].lastInstruction.Position]
+	c.scopes[c.curScope].lastInstruction = c.scopes[c.curScope].previousInstruction
 }
 
 func (c *Compiler) replaceInstruction(pos int, newInstr []byte) {
 	for i := range newInstr {
-		c.instructions[pos+i] = newInstr[i]
+		c.scopes[c.curScope].instructions[pos+i] = newInstr[i]
 	}
 }
 
 func (c *Compiler) changeOperand(opPos int, operand int) {
-	opcode := code.Opcode(c.instructions[opPos])
+	opcode := code.Opcode(c.scopes[c.curScope].instructions[opPos])
 	instrs := code.Make(opcode, operand)
 	c.replaceInstruction(opPos, instrs)
 }
@@ -277,22 +356,41 @@ func (c *Compiler) addConstant(obj object.Object) int {
 }
 
 func (c *Compiler) addInstruction(inst code.Instructions) int {
-	off := len(c.instructions)
-	c.instructions = append(c.instructions, inst...)
+	currentInsts := c.currentInstructions()
+	off := len(currentInsts)
+	c.scopes[c.curScope].instructions = append(currentInsts, inst...)
 	return off
 }
 
 func (c *Compiler) setLastInstruction(op code.Opcode, position int) {
-	c.previousInstruction = c.lastInstruction
-	c.lastInstruction = EmittedInstruction{
+	c.scopes[c.curScope].previousInstruction = c.scopes[c.curScope].lastInstruction
+	c.scopes[c.curScope].lastInstruction = EmittedInstruction{
 		Opcode:   op,
 		Position: position,
 	}
 }
 
+func (c *Compiler) enterScope() {
+	c.scopes = append(c.scopes, CompilationScope{})
+	c.curScope++
+
+	c.symbolTable = NewEnclosedSymbolTable(c.symbolTable)
+}
+
+func (c *Compiler) exitScope() (code.Instructions, int) {
+	insts := c.currentInstructions()
+	c.scopes = c.scopes[:len(c.scopes)-1]
+	c.curScope--
+
+	numLocals := c.symbolTable.NumDefinitions
+	c.symbolTable = c.symbolTable.Parent
+
+	return insts, numLocals
+}
+
 func (c *Compiler) Bytecode() *Bytecode {
 	return &Bytecode{
-		Instructions: c.instructions,
+		Instructions: c.currentInstructions(),
 		Constants:    c.constants,
 	}
 }

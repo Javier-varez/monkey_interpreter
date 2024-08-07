@@ -7,23 +7,25 @@ import (
 	"strings"
 
 	"github.com/javier-varez/monkey_interpreter/ast"
+	"github.com/javier-varez/monkey_interpreter/code"
 	"github.com/javier-varez/monkey_interpreter/token"
 )
 
 type ObjectType string
 
 const (
-	INTEGER_OBJ      = "INTEGER"
-	BOOLEAN_OBJ      = "BOOLEAN"
-	STRING_OBJ       = "STRING"
-	NULL_OBJ         = "NULL"
-	RETURN_VALUE_OBJ = "RETURN_VALUE"
-	ERROR_VALUE_OBJ  = "ERROR_VALUE"
-	FUNCTION_OBJ     = "FUNCTION"
-	BUILTIN_OBJ      = "BUILTIN"
-	ARRAY_OBJ        = "ARRAY"
-	VAR_ARGS_OBJ     = "VAR_ARGS"
-	MAP_OBJ          = "MAP"
+	INTEGER_OBJ           = "INTEGER"
+	BOOLEAN_OBJ           = "BOOLEAN"
+	STRING_OBJ            = "STRING"
+	NULL_OBJ              = "NULL"
+	RETURN_VALUE_OBJ      = "RETURN_VALUE"
+	ERROR_VALUE_OBJ       = "ERROR_VALUE"
+	FUNCTION_OBJ          = "FUNCTION"
+	COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION"
+	BUILTIN_OBJ           = "BUILTIN"
+	ARRAY_OBJ             = "ARRAY"
+	VAR_ARGS_OBJ          = "VAR_ARGS"
+	MAP_OBJ               = "MAP"
 )
 
 type Object interface {
@@ -194,6 +196,21 @@ func (f *Builtin) Type() ObjectType {
 
 func (f *Builtin) Inspect() string {
 	return "<Builtin>"
+}
+
+type CompiledFunction struct {
+	Instructions code.Instructions
+	NumLocals    int
+	NumArgs      int
+	VarArgs      bool
+}
+
+func (f *CompiledFunction) Type() ObjectType {
+	return COMPILED_FUNCTION_OBJ
+}
+
+func (f *CompiledFunction) Inspect() string {
+	return fmt.Sprintf("CompiledFunction[%p]", f)
 }
 
 type Array struct {
