@@ -13,131 +13,14 @@ func mkError(s token.Span, msg string) *object.Error {
 	return &object.Error{Span: s, Message: msg}
 }
 
-var builtins map[string]object.BuiltinFunction = map[string]object.BuiltinFunction{
-	"len": func(span token.Span, objects ...object.Object) object.Object {
-		if len(objects) != 1 {
-			return mkError(span, "\"len\" builtin takes a single string or array argument")
-		}
+var builtins map[string]*object.Builtin
 
-		strObj, ok := objects[0].(*object.String)
-		if ok {
-			return &object.Integer{Value: int64(len(strObj.Value))}
-		}
+func init() {
+	builtins = make(map[string]*object.Builtin)
+	for _, b := range object.Builtins {
+		builtins[b.Name] = b.Builtin
+	}
 
-		arrObj, ok := objects[0].(*object.Array)
-		if ok {
-			return &object.Integer{Value: int64(len(arrObj.Elems))}
-		}
-
-		return mkError(span, "\"len\" builtin takes a single string or array argument")
-	},
-	"first": func(span token.Span, objects ...object.Object) object.Object {
-		if len(objects) != 1 {
-			return mkError(span, "\"first\" builtin takes a single array argument")
-		}
-
-		arrObj, ok := objects[0].(*object.Array)
-		if ok {
-			if len(arrObj.Elems) == 0 {
-				return mkError(span, "Array is empty")
-			}
-			return arrObj.Elems[0]
-		}
-
-		return mkError(span, "\"first\" builtin takes a single array argument")
-	},
-	"last": func(span token.Span, objects ...object.Object) object.Object {
-		if len(objects) != 1 {
-			return mkError(span, "\"last\" builtin takes a single array argument")
-		}
-
-		arrObj, ok := objects[0].(*object.Array)
-		if ok {
-			if len(arrObj.Elems) == 0 {
-				return mkError(span, "Array is empty")
-			}
-			return arrObj.Elems[len(arrObj.Elems)-1]
-		}
-
-		return mkError(span, "\"last\" builtin takes a single array argument")
-	},
-	"rest": func(span token.Span, objects ...object.Object) object.Object {
-		if len(objects) != 1 {
-			return mkError(span, "\"rest\" builtin takes a single array argument")
-		}
-
-		arrObj, ok := objects[0].(*object.Array)
-		if ok {
-			if len(arrObj.Elems) == 0 {
-				return mkError(span, "Array is empty")
-			}
-			newArr := &object.Array{Elems: make([]object.Object, len(arrObj.Elems)-1)}
-			copy(newArr.Elems[:], arrObj.Elems[1:])
-			return newArr
-		}
-
-		return mkError(span, "\"rest\" builtin takes a single array argument")
-	},
-	"push": func(span token.Span, objects ...object.Object) object.Object {
-		if len(objects) != 2 {
-			return mkError(span, "\"push\" builtin takes an array argument and a new object to push")
-		}
-
-		arrObj, ok := objects[0].(*object.Array)
-		if !ok {
-			return mkError(span, "\"push\" builtin takes an array argument and a new object to push")
-		}
-
-		oldLen := len(arrObj.Elems)
-		newArr := &object.Array{Elems: make([]object.Object, oldLen+1)}
-		copy(newArr.Elems[:oldLen], arrObj.Elems[:])
-		newArr.Elems[oldLen] = objects[1]
-
-		return newArr
-	},
-	"puts": func(span token.Span, objects ...object.Object) object.Object {
-		for _, object := range objects {
-			fmt.Print(object.Inspect())
-		}
-		fmt.Println()
-		return &object.Null{}
-	},
-	"toArray": func(span token.Span, objects ...object.Object) object.Object {
-		if len(objects) != 1 {
-			return mkError(span, "\"toArray\" builtin takes a VarArg argument")
-		}
-
-		varArgObj, ok := objects[0].(*object.VarArgs)
-		if !ok {
-			return mkError(span, "\"toArray\" builtin takes a VarArg argument")
-		}
-
-		return &object.Array{Elems: varArgObj.Elems}
-	},
-	"contains": func(span token.Span, objects ...object.Object) object.Object {
-		if len(objects) != 2 {
-			return mkError(span, "\"contains\" builtin takes a HashMap argument and a key")
-		}
-
-		hashMapObj, ok := objects[0].(*object.HashMap)
-		if !ok {
-			return mkError(span, "First argument is not a hash map")
-		}
-
-		keyObj, ok := objects[1].(object.Hashable)
-		if !ok {
-			return mkError(span, "Second argument is not a hashable object")
-		}
-
-		elem, ok := hashMapObj.Elems[keyObj.HashKey()]
-		if ok {
-			if elem.Key.Inspect() == keyObj.Inspect() {
-				return &object.Boolean{Value: true}
-			}
-		}
-
-		return &object.Boolean{Value: false}
-	},
 }
 
 func evalAdd(leftObject, rightObject object.Object) object.Object {
@@ -439,7 +322,7 @@ func evalIdentifierExpr(expr *ast.IdentifierExpr, env *object.Environment) objec
 
 	// Try builtin identifiers
 	if builtin, ok := builtins[expr.IdentToken.Literal]; ok {
-		return &object.Builtin{Function: builtin}
+		return builtin
 	}
 
 	return mkError(expr.Span(), "Identifier not found")
