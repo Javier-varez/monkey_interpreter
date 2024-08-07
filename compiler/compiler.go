@@ -31,7 +31,12 @@ type EmittedInstruction struct {
 }
 
 func New() *Compiler {
-	return NewWithState([]object.Object{}, NewSymbolTable())
+	st := NewSymbolTable()
+	for i, builtin := range object.Builtins {
+		st.DefineBuiltin(i, builtin.Name)
+	}
+
+	return NewWithState([]object.Object{}, st)
 }
 
 func NewWithState(constants []object.Object, symbolTable *SymbolTable) *Compiler {
@@ -200,10 +205,13 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 			return fmt.Errorf("Unknown identifier %s", node.IdentToken.Literal)
 		}
 
-		if sym.Scope == LocalScope {
+		switch sym.Scope {
+		case LocalScope:
 			c.emit(code.OpGetLocal, sym.Index)
-		} else {
+		case GlobalScope:
 			c.emit(code.OpGetGlobal, sym.Index)
+		case BuiltinScope:
+			c.emit(code.OpGetBuiltin, sym.Index)
 		}
 
 	case *ast.StringLiteralExpr:

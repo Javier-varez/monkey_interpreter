@@ -90,6 +90,10 @@ func Start(useVm bool) {
 	env := object.NewEnvironment()
 	constants := []object.Object{}
 	symbolTable := compiler.NewSymbolTable()
+	for i, builtin := range object.Builtins {
+		symbolTable.DefineBuiltin(i, builtin.Name)
+	}
+
 	globals := make([]object.Object, vm.GLOBALS_SIZE)
 
 	if useVm {

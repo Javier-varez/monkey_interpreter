@@ -6,6 +6,7 @@ import (
 	"github.com/javier-varez/monkey_interpreter/code"
 	"github.com/javier-varez/monkey_interpreter/compiler"
 	"github.com/javier-varez/monkey_interpreter/object"
+	"github.com/javier-varez/monkey_interpreter/token"
 )
 
 const STACK_SIZE = 2048
@@ -266,14 +267,9 @@ func (vm *VM) Run() error {
 			}
 
 		case code.OpCall:
-			obj, err := vm.pop()
+			fnObj, err := vm.pop()
 			if err != nil {
 				return err
-			}
-
-			fn, ok := obj.(*object.CompiledFunction)
-			if !ok {
-				return fmt.Errorf("Not a callable, cannot be invoked")
 			}
 
 			numArgsObj, err := vm.pop()
@@ -281,14 +277,40 @@ func (vm *VM) Run() error {
 				return err
 			}
 
-			if numArgs, ok := numArgsObj.(*object.Integer); !ok {
+			numArgs, ok := numArgsObj.(*object.Integer)
+			if !ok {
 				return fmt.Errorf("Could not get number of arguments to function in the stack")
-			} else if int(numArgs.Value) != fn.NumArgs {
-				// TODO: handle varargs
-				return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumArgs, numArgs.Value)
 			}
 
-			vm.pushFrame(NewFrame(fn, vm.sp-fn.NumArgs))
+			switch fn := fnObj.(type) {
+			case *object.CompiledFunction:
+				if int(numArgs.Value) != fn.NumArgs {
+					// TODO: handle varargs
+					return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumArgs, numArgs.Value)
+				}
+
+				vm.pushFrame(NewFrame(fn, vm.sp-fn.NumArgs))
+
+			case *object.Builtin:
+				// Simply invoke it inline
+				args := make([]object.Object, numArgs.Value)
+				for i := 0; i < int(numArgs.Value); i++ {
+					v, err := vm.pop()
+					if err != nil {
+						return err
+					}
+					args[int(numArgs.Value)-1-i] = v
+				}
+
+				val := fn.Function(token.Span{}, args...)
+				err = vm.push(val)
+				if err != nil {
+					return err
+				}
+
+			default:
+				return fmt.Errorf("Not a callable, cannot be invoked")
+			}
 
 		case code.OpReturn:
 			vm.popFrame()
@@ -331,6 +353,20 @@ func (vm *VM) Run() error {
 			// TODO: This does not handle correctly accessing locals from a parent scope
 			obj := vm.stack[idx]
 			assertNotNil(obj)
+			err := vm.push(obj)
+			if err != nil {
+				return err
+			}
+
+		case code.OpGetBuiltin:
+			idx := int(code.ReadUint8(inst[ip+1:]))
+			vm.currentFrame().ip += 1
+
+			if idx >= len(object.Builtins) {
+				panic(fmt.Sprintf("Unknown builtin index %d", idx))
+			}
+
+			obj := object.Builtins[idx].Builtin
 			err := vm.push(obj)
 			if err != nil {
 				return err
