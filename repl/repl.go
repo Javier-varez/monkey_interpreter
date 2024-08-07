@@ -130,7 +130,9 @@ func Start(useVm bool) {
 				continue
 			}
 
-			vmInst := vm.NewWithGlobalKeyStore(c.Bytecode(), globals)
+			bytecode := c.Bytecode()
+			constants = bytecode.Constants
+			vmInst := vm.NewWithGlobalKeyStore(bytecode, globals)
 			err = vmInst.Run()
 			if err != nil {
 				fmt.Printf("Error from vm: %s\n", err)
