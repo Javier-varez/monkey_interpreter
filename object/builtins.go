@@ -128,7 +128,7 @@ var Builtins = []struct {
 					fmt.Print(object.Inspect())
 				}
 				fmt.Println()
-				return &Null{}
+				return nil
 			},
 		},
 	},

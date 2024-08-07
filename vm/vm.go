@@ -303,6 +303,9 @@ func (vm *VM) Run() error {
 				}
 
 				val := fn.Function(token.Span{}, args...)
+				if val == nil {
+					val = Null
+				}
 				err = vm.push(val)
 				if err != nil {
 					return err
