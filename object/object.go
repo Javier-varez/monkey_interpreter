@@ -185,9 +185,7 @@ func (f *Function) Inspect() string {
 type BuiltinFunction func(span token.Span, objects ...Object) Object
 
 type Builtin struct {
-	Function       BuiltinFunction
-	NumArgs        int // -1 for any
-	SupportedTypes []ObjectType
+	Function BuiltinFunction
 }
 
 func (f *Builtin) Type() ObjectType {
