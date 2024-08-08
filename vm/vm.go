@@ -281,33 +281,16 @@ func (vm *VM) Run() error {
 			if !ok {
 				return fmt.Errorf("Could not get number of arguments to function in the stack")
 			}
+			numArgsInCall := int(numArgs.Value)
 
 			switch fn := fnObj.(type) {
 			case *object.CompiledFunction:
-				if int(numArgs.Value) != fn.NumArgs {
-					// TODO: handle varargs
-					return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumArgs, numArgs.Value)
+				if err := vm.callCompiledFunction(fn, numArgsInCall); err != nil {
+					return err
 				}
-
-				vm.pushFrame(NewFrame(fn, vm.sp-fn.NumArgs))
 
 			case *object.Builtin:
-				// Simply invoke it inline
-				args := make([]object.Object, numArgs.Value)
-				for i := 0; i < int(numArgs.Value); i++ {
-					v, err := vm.pop()
-					if err != nil {
-						return err
-					}
-					args[int(numArgs.Value)-1-i] = v
-				}
-
-				val := fn.Function(token.Span{}, args...)
-				if val == nil {
-					val = Null
-				}
-				err = vm.push(val)
-				if err != nil {
+				if err := vm.executeBuiltin(fn, numArgsInCall); err != nil {
 					return err
 				}
 
@@ -489,6 +472,77 @@ func (vm *VM) runIntComparisonOp(op code.Opcode, lhs, rhs *object.Integer) error
 		return fmt.Errorf("Invalid integer comparison operation: %v", op)
 	}
 	return vm.push(&object.Boolean{Value: result})
+}
+
+func (vm *VM) callCompiledFunction(fn *object.CompiledFunction, numArgsInCall int) error {
+	allArgs := make([]object.Object, numArgsInCall)
+	copy(allArgs, vm.stack[vm.sp-numArgsInCall:vm.sp])
+
+	// Free all the stack objects of the call, we will push them back now
+	vm.sp -= numArgsInCall
+
+	numArgsInCall = 0
+	for _, arg := range allArgs {
+		switch typedArg := arg.(type) {
+		case *object.VarArgs:
+			numArgsInCall += len(typedArg.Elems)
+			for _, inner := range typedArg.Elems {
+				if err := vm.push(inner); err != nil {
+					return err
+				}
+			}
+		default:
+			numArgsInCall += 1
+			if err := vm.push(arg); err != nil {
+				return err
+			}
+		}
+	}
+
+	if fn.VarArgs {
+		if numArgsInCall < fn.NumArgs {
+			return fmt.Errorf("wrong number of arguments: want>=%d, got=%d", fn.NumArgs, numArgsInCall)
+		}
+
+		numVarArgs := numArgsInCall - fn.NumArgs
+		varArgs := &object.VarArgs{Elems: make([]object.Object, numVarArgs)}
+		for i := 0; i < numVarArgs; i++ {
+			v, err := vm.pop()
+			if err != nil {
+				return err
+			}
+			varArgs.Elems[numVarArgs-1-i] = v
+		}
+		err := vm.push(varArgs)
+		if err != nil {
+			return err
+		}
+	} else {
+		if numArgsInCall != fn.NumArgs {
+			return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumArgs, numArgsInCall)
+		}
+	}
+
+	vm.pushFrame(NewFrame(fn, vm.sp))
+	return nil
+}
+
+func (vm *VM) executeBuiltin(fn *object.Builtin, numArgsInCall int) error {
+	args := make([]object.Object, numArgsInCall)
+	for i := 0; i < int(numArgsInCall); i++ {
+		v, err := vm.pop()
+		if err != nil {
+			return err
+		}
+		args[int(numArgsInCall)-1-i] = v
+	}
+
+	val := fn.Function(token.Span{}, args...)
+	if val == nil {
+		val = Null
+	}
+
+	return vm.push(val)
 }
 
 func (vm *VM) push(ob object.Object) error {

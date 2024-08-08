@@ -352,6 +352,13 @@ func TestFunctionCalls(t *testing.T) {
 			`,
 			15 * 22,
 		},
+		{`fn(a, ...) { let v = toArray(...); len(v) + a }(12, 1, 2, 3, 4)`, 16},
+		{`fn(a, ...) { fn(a, b, c, d) { return a + b + c + d }(a, ...) }(1, 2, 3, 4)`, 10},
+		{`fn(a, ...) { fn(a, b, c, d, ...) { return len(toArray(...)) }(a, ...) }(1, 2, 3, 4)`, 0},
+		{`fn(a, ...) { fn(a, b, c, d, ...) { return len(toArray(...)) }(a, ...) }(1, 2, 3, 4, 5)`, 1},
+		{`fn(a, ...) { fn(a, ...) { return len(toArray(...)) }(a, toArray(...)) }(1, 2, 3, 4, 5)`, 1},
+		{`fn(a, ...) { fn(a, ...) { return len(toArray(...)[0]) }(a, toArray(...)) }(1, 2, 3, 4, 5)`, 4},
+		{`fn(a, ...) { let v = toArray(...); last(v) + a }(12, 1, 2, 3, 4)`, 16},
 	}
 
 	runVmTests(t, tests)
