@@ -569,6 +569,23 @@ func TestCompiler(t *testing.T) {
 				code.Make(code.OpPop),
 			},
 		},
+		{
+			input: `fn(...) { toArray(...) }`,
+			expectedConstants: []interface{}{
+				1,
+				[]code.Instructions{
+					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpConstant, 0),
+					code.Make(code.OpGetBuiltin, 6),
+					code.Make(code.OpCall),
+					code.Make(code.OpReturnValue),
+				},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpPop),
+			},
+		},
 	}
 
 	runCompilerTests(t, tests)

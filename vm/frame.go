@@ -14,11 +14,15 @@ type Frame struct {
 }
 
 func NewFrame(fn *object.CompiledFunction, sp int) *Frame {
+	args := fn.NumArgs
+	if fn.VarArgs {
+		args += 1
+	}
 	return &Frame{
 		fn: fn,
 		ip: -1,
 
-		LocalsBase: sp,
+		LocalsBase: sp - args,
 	}
 }
 

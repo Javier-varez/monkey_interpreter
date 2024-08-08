@@ -10,6 +10,8 @@ import (
 	"github.com/javier-varez/monkey_interpreter/token"
 )
 
+const INTERNAL_VARARGS = "__monkey_internal_varargs_symbol__"
+
 type CompilationScope struct {
 	instructions code.Instructions
 
@@ -269,6 +271,10 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 			c.symbolTable.Define(arg.IdentToken.Literal)
 		}
 
+		if node.VarArgs {
+			c.symbolTable.Define(INTERNAL_VARARGS)
+		}
+
 		err := c.Compile(node.Body)
 		if err != nil {
 			return err
@@ -313,6 +319,13 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 		}
 
 		c.emit(code.OpCall)
+
+	case *ast.VarArgsLiteralExpr:
+		sym, ok := c.symbolTable.Resolve(INTERNAL_VARARGS)
+		if !ok {
+			return fmt.Errorf("Unknown identifier %s", INTERNAL_VARARGS)
+		}
+		c.emit(code.OpGetLocal, sym.Index)
 
 	default:
 		return fmt.Errorf("Unhandled node type %T", untypedNode)
