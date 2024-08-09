@@ -348,7 +348,11 @@ func evalCallBuiltin(builtin *object.Builtin, expr *ast.CallExpr, env *object.En
 		args = append(args, res)
 	}
 
-	return builtin.Function(expr.Span(), args...)
+	res := builtin.Function(expr.Span(), args...)
+	if res == nil {
+		res = &object.Null{}
+	}
+	return res
 }
 
 func evalCallFnObject(fnObj *object.Function, expr *ast.CallExpr, env *object.Environment) object.Object {
