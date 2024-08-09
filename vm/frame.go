@@ -6,26 +6,26 @@ import (
 )
 
 type Frame struct {
-	fn *object.CompiledFunction
-	ip int
+	closure *object.Closure
+	ip      int
 
 	// points to the local vars on the stack
 	LocalsBase int
 }
 
-func NewFrame(fn *object.CompiledFunction, sp int) *Frame {
-	args := fn.NumArgs
-	if fn.VarArgs {
+func NewFrame(closure *object.Closure, sp int) *Frame {
+	args := closure.Fn.NumArgs
+	if closure.Fn.VarArgs {
 		args += 1
 	}
 	return &Frame{
-		fn: fn,
-		ip: -1,
+		closure: closure,
+		ip:      -1,
 
 		LocalsBase: sp - args,
 	}
 }
 
 func (f *Frame) Instructions() code.Instructions {
-	return f.fn.Instructions
+	return f.closure.Fn.Instructions
 }
