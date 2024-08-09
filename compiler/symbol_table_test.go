@@ -173,46 +173,46 @@ func TestResolveFree(t *testing.T) {
 	tests := []struct {
 		name         string
 		table        *SymbolTable
-		expected     map[string]Symbol
-		expectedFree map[string]Symbol
+		expected     []Symbol
+		expectedFree []Symbol
 	}{
 		{
 			name:  "local",
 			table: local,
-			expected: map[string]Symbol{
-				"a": {Name: "a", Scope: GlobalScope, Index: 0},
-				"b": {Name: "b", Scope: GlobalScope, Index: 1},
-				"c": {Name: "c", Scope: LocalScope, Index: 0},
-				"d": {Name: "d", Scope: LocalScope, Index: 1},
+			expected: []Symbol{
+				{Name: "a", Scope: GlobalScope, Index: 0},
+				{Name: "b", Scope: GlobalScope, Index: 1},
+				{Name: "c", Scope: LocalScope, Index: 0},
+				{Name: "d", Scope: LocalScope, Index: 1},
 			},
 		},
 		{
 			name:  "nestedLocal",
 			table: local2,
-			expected: map[string]Symbol{
-				"a": {Name: "a", Scope: GlobalScope, Index: 0},
-				"b": {Name: "b", Scope: GlobalScope, Index: 1},
-				"c": {Name: "c", Scope: FreeScope, Index: 0},
-				"d": {Name: "d", Scope: FreeScope, Index: 1},
-				"e": {Name: "e", Scope: LocalScope, Index: 0},
-				"f": {Name: "f", Scope: LocalScope, Index: 1},
+			expected: []Symbol{
+				{Name: "a", Scope: GlobalScope, Index: 0},
+				{Name: "b", Scope: GlobalScope, Index: 1},
+				{Name: "c", Scope: FreeScope, Index: 0},
+				{Name: "d", Scope: FreeScope, Index: 1},
+				{Name: "e", Scope: LocalScope, Index: 0},
+				{Name: "f", Scope: LocalScope, Index: 1},
 			},
-			expectedFree: map[string]Symbol{
-				"c": {Name: "c", Scope: LocalScope, Index: 0},
-				"d": {Name: "d", Scope: LocalScope, Index: 1},
+			expectedFree: []Symbol{
+				{Name: "c", Scope: LocalScope, Index: 0},
+				{Name: "d", Scope: LocalScope, Index: 1},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for sym, exp_content := range tt.expected {
-				result, ok := tt.table.Resolve(sym)
+			for _, exp_content := range tt.expected {
+				result, ok := tt.table.Resolve(exp_content.Name)
 				if !ok {
-					t.Errorf("Expected to find symbol %s", sym)
+					t.Errorf("Expected to find symbol %s", exp_content.Name)
 				} else {
 					if result != exp_content {
-						t.Errorf("Invalid symbol %s. Expected=%q, Got=%q", sym, exp_content, result)
+						t.Errorf("Invalid symbol %s. Expected=%q, Got=%q", exp_content.Name, exp_content, result)
 					}
 				}
 			}
@@ -220,6 +220,13 @@ func TestResolveFree(t *testing.T) {
 			if len(tt.expectedFree) != len(tt.table.FreeSymbols) {
 				t.Errorf("wrong number of free symbols. got=%d, want=%d",
 					len(tt.table.FreeSymbols), len(tt.expectedFree))
+			}
+
+			for i, expected := range tt.expectedFree {
+				actual := tt.table.FreeSymbols[i]
+				if actual != expected {
+					t.Errorf("wrong free symbol. got=%v, want=%v", actual, expected)
+				}
 			}
 		})
 	}

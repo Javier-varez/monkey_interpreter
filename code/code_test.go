@@ -37,6 +37,7 @@ func TestMake(t *testing.T) {
 		{OpGetBuiltin, []int{254}, Instructions{byte(OpGetBuiltin), 254}},
 		{OpClosure, []int{254, 3}, Instructions{byte(OpClosure), 0, 254, 3}},
 		{OpGetFree, []int{254}, Instructions{byte(OpGetFree), 254}},
+		{OpRange, []int{}, Instructions{byte(OpRange)}},
 	}
 
 	for _, tt := range tests {
@@ -87,6 +88,7 @@ func TestInstructionsString(t *testing.T) {
 		Make(OpGetBuiltin, 254),
 		Make(OpClosure, 254, 3),
 		Make(OpGetFree, 3),
+		Make(OpRange),
 	}
 
 	expected := `0000 OpConstant 1
@@ -120,6 +122,7 @@ func TestInstructionsString(t *testing.T) {
 0048 OpGetBuiltin 254
 0050 OpClosure 254 3
 0054 OpGetFree 3
+0056 OpRange
 `
 	concatted := Instructions{}
 	for _, ins := range instructions {
