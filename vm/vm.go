@@ -395,6 +395,47 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpRange:
+			endObj, err := vm.pop()
+			if err != nil {
+				return err
+			}
+
+			if endObj.Type() != object.INTEGER_OBJ {
+				return fmt.Errorf("Range start does not evaluate to an integer object: %T (%V)", endObj, endObj)
+			}
+
+			startObj, err := vm.pop()
+			if err != nil {
+				return err
+			}
+
+			if startObj.Type() != object.INTEGER_OBJ {
+				return fmt.Errorf("Range start does not evaluate to an integer object: %T (%V)", startObj, startObj)
+			}
+
+			start := startObj.(*object.Integer).Value
+			end := endObj.(*object.Integer).Value
+
+			incr := int64(1)
+			if start > end {
+				// Decreasing range
+				incr = -1
+			}
+
+			arrayObj := &object.Array{Elems: []object.Object{}}
+
+			curValue := start
+			for curValue != end {
+				arrayObj.Elems = append(arrayObj.Elems, &object.Integer{Value: curValue})
+				curValue = curValue + incr
+			}
+
+			err = vm.push(arrayObj)
+			if err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("Unhandled operation: %v", op)
 		}

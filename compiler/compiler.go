@@ -326,6 +326,17 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 
 		c.emit(code.OpCall)
 
+	case *ast.RangeExpr:
+		if err := c.Compile(node.StartExpr); err != nil {
+			return err
+		}
+
+		if err := c.Compile(node.EndExpr); err != nil {
+			return err
+		}
+
+		c.emit(code.OpRange)
+
 	default:
 		return fmt.Errorf("Unhandled node type %T", untypedNode)
 	}

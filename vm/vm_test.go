@@ -470,3 +470,12 @@ func TestClosures(t *testing.T) {
 
 	runVmTests(t, tests)
 }
+
+func TestRangeExpression(t *testing.T) {
+	tests := []vmTestCase{
+		{`let a = fn() { 0 }; a()..10`, []interface{}{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
+		{`let a = fn() { 0 }; let b = fn() { 10 }; b()..a()`, []interface{}{10, 9, 8, 7, 6, 5, 4, 3, 2, 1}},
+	}
+
+	runVmTests(t, tests)
+}
