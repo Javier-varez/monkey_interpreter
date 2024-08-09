@@ -201,20 +201,21 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 			c.emit(code.OpSetGlobal, sym.Index)
 		}
 
+	case *ast.VarArgsLiteralExpr:
+		sym, ok := c.symbolTable.Resolve(INTERNAL_VARARGS)
+		if !ok {
+			return fmt.Errorf("Unknown identifier %s", INTERNAL_VARARGS)
+		}
+
+		c.loadSymbol(sym)
+
 	case *ast.IdentifierExpr:
 		sym, ok := c.symbolTable.Resolve(node.IdentToken.Literal)
 		if !ok {
 			return fmt.Errorf("Unknown identifier %s", node.IdentToken.Literal)
 		}
 
-		switch sym.Scope {
-		case LocalScope:
-			c.emit(code.OpGetLocal, sym.Index)
-		case GlobalScope:
-			c.emit(code.OpGetGlobal, sym.Index)
-		case BuiltinScope:
-			c.emit(code.OpGetBuiltin, sym.Index)
-		}
+		c.loadSymbol(sym)
 
 	case *ast.StringLiteralExpr:
 		idx := c.addConstant(&object.String{Value: node.Value})
@@ -287,14 +288,19 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 			c.emit(code.OpReturn)
 		}
 
-		insts, numLocals := c.exitScope()
+		insts, numLocals, freeSymbols := c.exitScope()
+		numFreeSymbols := len(freeSymbols)
 
-		c.emit(code.OpConstant, c.addConstant(&object.CompiledFunction{
+		for _, sym := range freeSymbols {
+			c.loadSymbol(sym)
+		}
+
+		c.emit(code.OpClosure, c.addConstant(&object.CompiledFunction{
 			Instructions: insts,
 			NumLocals:    numLocals,
 			NumArgs:      len(node.Args),
 			VarArgs:      node.VarArgs,
-		}))
+		}), numFreeSymbols)
 
 	case *ast.ReturnStatement:
 		err := c.Compile(node.Expr)
@@ -319,13 +325,6 @@ func (c *Compiler) Compile(untypedNode ast.Node) error {
 		}
 
 		c.emit(code.OpCall)
-
-	case *ast.VarArgsLiteralExpr:
-		sym, ok := c.symbolTable.Resolve(INTERNAL_VARARGS)
-		if !ok {
-			return fmt.Errorf("Unknown identifier %s", INTERNAL_VARARGS)
-		}
-		c.emit(code.OpGetLocal, sym.Index)
 
 	default:
 		return fmt.Errorf("Unhandled node type %T", untypedNode)
@@ -398,15 +397,29 @@ func (c *Compiler) enterScope() {
 	c.symbolTable = NewEnclosedSymbolTable(c.symbolTable)
 }
 
-func (c *Compiler) exitScope() (code.Instructions, int) {
+func (c *Compiler) exitScope() (code.Instructions, int, []Symbol) {
 	insts := c.currentInstructions()
 	c.scopes = c.scopes[:len(c.scopes)-1]
 	c.curScope--
 
 	numLocals := c.symbolTable.NumDefinitions
+	freeSymbols := c.symbolTable.FreeSymbols
 	c.symbolTable = c.symbolTable.Parent
 
-	return insts, numLocals
+	return insts, numLocals, freeSymbols
+}
+
+func (c *Compiler) loadSymbol(sym Symbol) {
+	switch sym.Scope {
+	case LocalScope:
+		c.emit(code.OpGetLocal, sym.Index)
+	case GlobalScope:
+		c.emit(code.OpGetGlobal, sym.Index)
+	case BuiltinScope:
+		c.emit(code.OpGetBuiltin, sym.Index)
+	case FreeScope:
+		c.emit(code.OpGetFree, sym.Index)
+	}
 }
 
 func (c *Compiler) Bytecode() *Bytecode {

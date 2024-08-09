@@ -457,3 +457,16 @@ func TestBuiltinFunctions(t *testing.T) {
 	runVmTests(t, tests)
 
 }
+
+func TestClosures(t *testing.T) {
+	tests := []vmTestCase{
+		{`let a = fn(a) { let b = 10; fn(c) { 2 * b + 3 * a + c } }; a(40)(4)`, 144},
+		{`let f = fn(...) { let b = 10; fn(c) { len(toArray(...)) + b + c } }; f(44,4,44,44,4)(4)`, 19},
+		{`let newAdder = fn(a,b) { fn(c) {a+b+c} }; let adder = newAdder(1,2); adder(8)`, 11},
+		{`let newAdder = fn(a,b) { let c = a + b; fn(d) {c+d} }; let adder = newAdder(1,2); adder(8)`, 11},
+		{`let newAdderOuter = fn(a,b) { let c = a + b; fn(d) { let e = c+d; fn(f) {e+f} } }; let newAdderInner = newAdderOuter(1,2); let adder = newAdderInner(3); adder(8)`, 14},
+		{`let newClosure = fn(a,b) { let one = fn() {a}; let two = fn() {b}; fn() { one() + two() }}; let closure = newClosure(9, 90); closure()`, 99},
+	}
+
+	runVmTests(t, tests)
+}

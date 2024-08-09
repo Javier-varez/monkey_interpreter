@@ -40,7 +40,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 
 func NewWithGlobalKeyStore(bytecode *compiler.Bytecode, keyStore []object.Object) *VM {
 	frames := make([]*Frame, MAX_FRAMES)
-	frames[0] = NewFrame(&object.CompiledFunction{Instructions: bytecode.Instructions}, 0)
+	frames[0] = NewFrame(&object.Closure{Fn: &object.CompiledFunction{Instructions: bytecode.Instructions}}, 0)
 
 	return &VM{
 		constants: bytecode.Constants,
@@ -284,7 +284,7 @@ func (vm *VM) Run() error {
 			numArgsInCall := int(numArgs.Value)
 
 			switch fn := fnObj.(type) {
-			case *object.CompiledFunction:
+			case *object.Closure:
 				if err := vm.callCompiledFunction(fn, numArgsInCall); err != nil {
 					return err
 				}
@@ -355,6 +355,43 @@ func (vm *VM) Run() error {
 			obj := object.Builtins[idx].Builtin
 			err := vm.push(obj)
 			if err != nil {
+				return err
+			}
+
+		case code.OpClosure:
+			constantIdx := int(code.ReadUint16(inst[ip+1:]))
+			numFreeVars := int(code.ReadUint8(inst[ip+3:]))
+			vm.currentFrame().ip += 3
+
+			freeObjects := make([]object.Object, numFreeVars)
+			for i := 0; i < numFreeVars; i++ {
+				val, err := vm.pop()
+				if err != nil {
+					return err
+				}
+				freeObjects[numFreeVars-1-i] = val
+			}
+
+			fn, ok := vm.constants[constantIdx].(*object.CompiledFunction)
+			if !ok {
+				return fmt.Errorf("Argument to the OpClosure is not a compiled function")
+			}
+
+			err := vm.push(&object.Closure{Fn: fn, FreeObjects: freeObjects})
+			if err != nil {
+				return err
+			}
+
+		case code.OpGetFree:
+			freeIdx := int(code.ReadUint8(inst[ip+1:]))
+			vm.currentFrame().ip += 1
+			freeObjects := vm.currentFrame().closure.FreeObjects
+
+			if freeIdx >= len(freeObjects) {
+				return fmt.Errorf("Invalid free index: %d. Num free objects: %d", freeIdx, len(freeObjects))
+			}
+
+			if err := vm.push(freeObjects[freeIdx]); err != nil {
 				return err
 			}
 
@@ -474,7 +511,7 @@ func (vm *VM) runIntComparisonOp(op code.Opcode, lhs, rhs *object.Integer) error
 	return vm.push(&object.Boolean{Value: result})
 }
 
-func (vm *VM) callCompiledFunction(fn *object.CompiledFunction, numArgsInCall int) error {
+func (vm *VM) callCompiledFunction(closure *object.Closure, numArgsInCall int) error {
 	allArgs := make([]object.Object, numArgsInCall)
 	copy(allArgs, vm.stack[vm.sp-numArgsInCall:vm.sp])
 
@@ -499,6 +536,7 @@ func (vm *VM) callCompiledFunction(fn *object.CompiledFunction, numArgsInCall in
 		}
 	}
 
+	fn := closure.Fn
 	if fn.VarArgs {
 		if numArgsInCall < fn.NumArgs {
 			return fmt.Errorf("wrong number of arguments: want>=%d, got=%d", fn.NumArgs, numArgsInCall)
@@ -523,7 +561,7 @@ func (vm *VM) callCompiledFunction(fn *object.CompiledFunction, numArgsInCall in
 		}
 	}
 
-	vm.pushFrame(NewFrame(fn, vm.sp))
+	vm.pushFrame(NewFrame(closure, vm.sp))
 	return nil
 }
 
@@ -579,7 +617,12 @@ func (vm *VM) currentFrame() *Frame {
 }
 
 func (vm *VM) pushFrame(frame *Frame) {
-	vm.sp += frame.fn.NumLocals
+	numArgs := frame.closure.Fn.NumArgs
+	if frame.closure.Fn.VarArgs {
+		numArgs += 1
+	}
+	// Arg locals have already been pushed to the stack, therefore we don't need to move them
+	vm.sp += frame.closure.Fn.NumLocals - numArgs
 	vm.frames[vm.frameIndex] = frame
 	vm.frameIndex++
 }
@@ -587,6 +630,6 @@ func (vm *VM) pushFrame(frame *Frame) {
 func (vm *VM) popFrame() *Frame {
 	vm.frameIndex--
 	frame := vm.frames[vm.frameIndex]
-	vm.sp -= frame.fn.NumLocals + frame.fn.NumArgs
+	vm.sp -= frame.closure.Fn.NumLocals
 	return frame
 }

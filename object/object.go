@@ -22,6 +22,7 @@ const (
 	ERROR_VALUE_OBJ       = "ERROR_VALUE"
 	FUNCTION_OBJ          = "FUNCTION"
 	COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION"
+	CLOSURE_OBJ           = "CLOSURE"
 	BUILTIN_OBJ           = "BUILTIN"
 	ARRAY_OBJ             = "ARRAY"
 	VAR_ARGS_OBJ          = "VAR_ARGS"
@@ -211,6 +212,19 @@ func (f *CompiledFunction) Inspect() string {
 	return fmt.Sprintf("CompiledFunction[%p]", f)
 }
 
+type Closure struct {
+	Fn          *CompiledFunction
+	FreeObjects []Object
+}
+
+func (f *Closure) Type() ObjectType {
+	return CLOSURE_OBJ
+}
+
+func (f *Closure) Inspect() string {
+	return fmt.Sprintf("Closure[%p]", f)
+}
+
 type Array struct {
 	Elems []Object
 }
@@ -245,7 +259,7 @@ func (a *VarArgs) Type() ObjectType {
 func (a *VarArgs) Inspect() string {
 	var buffer bytes.Buffer
 
-	buffer.WriteString("[")
+	buffer.WriteString("VA[")
 	for i, obj := range a.Elems {
 		buffer.WriteString(obj.Inspect())
 		if i != len(a.Elems)-1 {
